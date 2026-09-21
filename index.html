@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fake News Detector | Investigation Dashboard</title>
+
+  <!-- Icons -->
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" />
+  <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="page-glow glow-one"></div>
+  <div class="page-glow glow-two"></div>
+
+  <!-- ================= NAVBAR ================= -->
+  <header class="navbar">
+    <div class="nav-left">
+      <button class="menu-btn" id="menuBtn" aria-label="Open sidebar">
+        <i class="fa-solid fa-bars"></i>
+      </button>
+
+      <a href="#" class="brand" id="homeLink">
+        <div class="brand-logo">
+          <i class="fa-solid fa-fingerprint"></i>
+          <span class="scan-dot"></span>
+        </div>
+        <div>
+          <div class="brand-name">
+            <span>FAKE NEWS</span> DETECTOR
+          </div>
+          <div class="brand-tagline">Detect • Verify • Investigate</div>
+        </div>
+      </a>
+    </div>
+
+    <nav class="nav-links">
+      <a href="#home">Home</a>
+      <a href="#about">About</a>
+      <button class="signin-nav" id="openAuthBtn">
+        <i class="fa-solid fa-user"></i>
+        Sign In
+      </button>
+    </nav>
+  </header>
+
+  <!-- ================= SIDEBAR ================= -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-head">
+      <div>
+        <span class="small-label">CASE FILE SYSTEM</span>
+        <h3>Investigation</h3>
+      </div>
+      <button class="close-sidebar" id="closeSidebar" aria-label="Close sidebar">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+
+    <div class="sidebar-section">
+      <p>Main</p>
+      <button class="side-link active" data-section="dashboard">
+        <i class="fa-solid fa-gauge-high"></i>
+        <span>Dashboard</span>
+      </button>
+      <button class="side-link" data-section="history">
+        <i class="fa-solid fa-clock-rotate-left"></i>
+        <span>History</span>
+      </button>
+    </div>
+
+    <div class="sidebar-section">
+      <p>Account</p>
+      <button class="side-link" data-section="settings">
+        <i class="fa-solid fa-sliders"></i>
+        <span>Settings</span>
+      </button>
+      <button class="side-link" id="sidebarLogin">
+        <i class="fa-solid fa-right-to-bracket"></i>
+        <span>Login</span>
+      </button>
+    </div>
+
+    <div class="sidebar-bottom">
+      <button class="side-link logout" id="logoutBtn">
+        <i class="fa-solid fa-arrow-right-from-bracket"></i>
+        <span>Logout</span>
+      </button>
+    </div>
+  </aside>
+
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+  <!-- ================= MAIN ================= -->
+  <main id="home">
+
+    <!-- HERO -->
+    <section class="hero">
+      <div class="hero-gif"></div>
+      <div class="hero-overlay"></div>
+      <div class="hero-content">
+        <div class="eyebrow">
+          <span class="live-dot"></span>
+          OSINT • MEDIA FORENSICS • SOURCE CHECK
+        </div>
+
+        <h1>Don't Just Read It.<br /><span>Investigate It.</span></h1>
+
+        <p class="hero-description">
+          Check a claim, article, image or URL and uncover signals that help
+          you decide whether the information looks <b>Real</b>, <b>Fake</b>
+          or <b>Uncertain</b>.
+        </p>
+
+        <!-- Search is intentionally the only element sitting over the GIF -->
+        <div class="investigation-box">
+          <div class="search-wrap">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input
+              id="claimInput"
+              type="text"
+              placeholder="Enter a claim, URL or paste text to investigate..."
+              autocomplete="off"
+            />
+            <button class="clear-search" id="clearSearch" aria-label="Clear">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          </div>
+
+          <button class="investigate-btn" id="investigateBtn">
+            <span>Investigate</span>
+            <i class="fa-solid fa-arrow-up-right-from-square"></i>
+          </button>
+
+          <button class="upload-btn" id="uploadBtn">
+            <i class="fa-solid fa-cloud-arrow-up"></i>
+            Upload Image
+          </button>
+
+          <input type="file" id="imageInput" accept="image/*" hidden />
+        </div>
+
+        <div class="quick-tools">
+          <span><i class="fa-solid fa-fingerprint"></i> Check Authorship</span>
+          <span><i class="fa-regular fa-image"></i> Analyze Media</span>
+          <span><i class="fa-solid fa-link"></i> Cross-Reference Sources</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- RESULT AREA: NOT OVER THE GIF -->
+    <section class="result-section hidden" id="resultSection">
+      <div class="result-card">
+        <div class="result-top">
+          <div>
+            <span class="result-label">INVESTIGATION RESULT</span>
+            <h2 id="resultTitle">Analysis complete</h2>
+          </div>
+          <span class="result-badge" id="resultBadge">UNCERTAIN</span>
+        </div>
+
+        <div class="confidence">
+          <div class="confidence-row">
+            <span>Confidence</span>
+            <strong id="confidenceText">72%</strong>
+          </div>
+          <div class="progress">
+            <span id="confidenceBar"></span>
+          </div>
+        </div>
+
+        <div class="result-grid">
+          <div>
+            <i class="fa-solid fa-circle-check"></i>
+            <div>
+              <b>Signal Summary</b>
+              <p id="signalText">Source consistency requires additional verification.</p>
+            </div>
+          </div>
+          <div>
+            <i class="fa-solid fa-shield-halved"></i>
+            <div>
+              <b>Recommended Action</b>
+              <p id="actionText">Cross-check the original source before sharing.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FOUR INVESTIGATION METHODS -->
+    <section class="methods-section" id="about">
+      <div class="section-heading">
+        <div>
+          <span class="section-kicker">FOUR WAYS TO INVESTIGATE</span>
+          <h2>Choose your evidence.</h2>
+        </div>
+        <p>
+          Each route starts a different type of verification workflow.
+          Click a card to use it.
+        </p>
+      </div>
+
+      <div class="method-grid">
+
+        <article class="method-card link-card" data-method="link">
+          <div class="method-image">
+            <div class="image-art">
+              <i class="fa-solid fa-link"></i>
+              <span class="orbit orbit-a"></span>
+              <span class="orbit orbit-b"></span>
+            </div>
+            <span class="image-number">01</span>
+          </div>
+          <div class="method-body">
+            <div class="method-icon"><i class="fa-solid fa-link"></i></div>
+            <h3>Check by Link</h3>
+            <p>Paste an article or website URL and inspect its source signals.</p>
+            <button class="card-action">Start link check <i class="fa-solid fa-arrow-right"></i></button>
+          </div>
+        </article>
+
+        <article class="method-card image-card" data-method="image">
+          <div class="method-image">
+            <div class="image-art">
+              <i class="fa-regular fa-image"></i>
+              <span class="scan-line"></span>
+              <span class="corner c1"></span><span class="corner c2"></span>
+            </div>
+            <span class="image-number">02</span>
+          </div>
+          <div class="method-body">
+            <div class="method-icon"><i class="fa-regular fa-image"></i></div>
+            <h3>Check an Image</h3>
+            <p>Upload media to explore visual manipulation and authenticity signals.</p>
+            <button class="card-action">Analyze image <i class="fa-solid fa-arrow-right"></i></button>
+          </div>
+        </article>
+
+        <article class="method-card search-card" data-method="search">
+          <div class="method-image">
+            <div class="image-art">
+              <i class="fa-solid fa-magnifying-glass"></i>
+              <span class="search-rays"></span>
+            </div>
+            <span class="image-number">03</span>
+          </div>
+          <div class="method-body">
+            <div class="method-icon"><i class="fa-solid fa-magnifying-glass"></i></div>
+            <h3>Search a Claim</h3>
+            <p>Enter a statement and compare it against your verification workflow.</p>
+            <button class="card-action">Search claim <i class="fa-solid fa-arrow-right"></i></button>
+          </div>
+        </article>
+
+        <article class="method-card share-card" data-method="share">
+          <div class="method-image">
+            <div class="image-art">
+              <i class="fa-solid fa-share-nodes"></i>
+              <span class="node n1"></span><span class="node n2"></span><span class="node n3"></span>
+            </div>
+            <span class="image-number">04</span>
+          </div>
+          <div class="method-body">
+            <div class="method-icon"><i class="fa-solid fa-share-nodes"></i></div>
+            <h3>Check by Sharing</h3>
+            <p>Share a claim into the detector workflow from your device.</p>
+            <button class="card-action">Share to check <i class="fa-solid fa-arrow-right"></i></button>
+          </div>
+        </article>
+
+      </div>
+    </section>
+
+    <!-- MINI STATS -->
+    <section class="stats-strip">
+      <div><i class="fa-solid fa-bolt"></i><span><b>Fast</b> investigation flow</span></div>
+      <div><i class="fa-solid fa-fingerprint"></i><span><b>Multi-signal</b> verification</span></div>
+      <div><i class="fa-solid fa-clock-rotate-left"></i><span><b>History</b> of your checks</span></div>
+      <div><i class="fa-solid fa-lock"></i><span><b>Private</b> account controls</span></div>
+    </section>
+  </main>
+
+  <!-- ================= AUTH MODAL ================= -->
+  <div class="modal-backdrop" id="authModal">
+    <div class="auth-modal">
+      <button class="modal-close" id="closeAuth" aria-label="Close">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+
+      <div class="auth-logo"><i class="fa-solid fa-fingerprint"></i></div>
+      <span class="section-kicker">CASE FILE ACCESS</span>
+      <h2 id="authHeading">Welcome back</h2>
+      <p class="auth-subtitle" id="authSubtitle">Login to continue your investigations.</p>
+
+      <div class="auth-tabs">
+        <button class="auth-tab active" data-auth="login">Login</button>
+        <button class="auth-tab" data-auth="signup">Sign Up</button>
+      </div>
+
+      <form id="authForm">
+        <label id="nameField" class="field hidden">
+          <span>Full name</span>
+          <div><i class="fa-regular fa-user"></i><input type="text" placeholder="Your name" /></div>
+        </label>
+
+        <label class="field">
+          <span>Email</span>
+          <div><i class="fa-regular fa-envelope"></i><input type="email" placeholder="you@example.com" required /></div>
+        </label>
+
+        <label class="field">
+          <span>Password</span>
+          <div><i class="fa-solid fa-lock"></i><input type="password" placeholder="••••••••" required /></div>
+        </label>
+
+        <label id="confirmField" class="field hidden">
+          <span>Confirm password</span>
+          <div><i class="fa-solid fa-shield-halved"></i><input type="password" placeholder="Repeat password" /></div>
+        </label>
+
+        <div class="form-row" id="loginOptions">
+          <label class="remember"><input type="checkbox" /> Remember me</label>
+          <button type="button" class="text-btn">Forgot password?</button>
+        </div>
+
+        <button class="auth-submit" type="submit" id="authSubmit">Login</button>
+      </form>
+
+      <p class="demo-note">Demo frontend — connect this form to your backend authentication later.</p>
+    </div>
+  </div>
+
+  <!-- ================= SETTINGS DRAWER ================= -->
+  <div class="settings-panel" id="settingsPanel">
+    <div class="settings-head">
+      <div>
+        <span class="section-kicker">PREFERENCES</span>
+        <h2>Settings</h2>
+      </div>
+      <button id="closeSettings"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+
+    <div class="setting-item">
+      <div>
+        <b>Compact animations</b>
+        <small>Reduce card and page motion.</small>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="motionToggle" />
+        <span></span>
+      </label>
+    </div>
+
+    <div class="setting-item">
+      <div>
+        <b>Show confidence</b>
+        <small>Display the confidence meter in results.</small>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="confidenceToggle" checked />
+        <span></span>
+      </label>
+    </div>
+
+    <div class="setting-item">
+      <div>
+        <b>Auto clear search</b>
+        <small>Clear the investigation box after analysis.</small>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="autoClearToggle" />
+        <span></span>
+      </label>
+    </div>
+
+    <div class="setting-note">
+      <i class="fa-solid fa-circle-info"></i>
+      <span>These settings are stored locally in your browser.</span>
+    </div>
+  </div>
+
+  <div class="toast" id="toast">
+    <i class="fa-solid fa-circle-check"></i>
+    <span id="toastText">Done</span>
+  </div>
+
+  <footer>
+    <p>© 2026 Fake News Detector • Detective Investigation Dashboard</p>
+    
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
