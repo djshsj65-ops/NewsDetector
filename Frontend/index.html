@@ -1,19 +1,25 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fake News Detector | Investigation Dashboard</title>
+
   <link rel="preconnect" href="https://cdnjs.cloudflare.com" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
   <link rel="stylesheet" href="style.css" />
 </head>
+
 <body>
+
   <div class="page-glow glow-one"></div>
   <div class="page-glow glow-two"></div>
 
+
   <!-- ================= NAVBAR ================= -->
   <header class="navbar">
+
     <div class="nav-left">
       <button class="menu-btn" id="menuBtn" aria-label="Open sidebar">
         <i class="fa-solid fa-bars"></i>
@@ -26,26 +32,39 @@
         </div>
         <div>
           <div class="brand-name"><span>FAKE NEWS</span> DETECTOR</div>
-          <div class="brand-tagline">Detect � Verify � Investigate</div>
+          <div class="brand-tagline">Detect • Verify • Investigate</div>
         </div>
       </a>
     </div>
 
     <nav class="nav-links">
-      <a href="#home">Home</a>
-      <a href="#about">About</a>
+      <a href="#home" id="navHome">Home</a>
+      <a href="#about" id="navAbout">About</a>
+
+      <button class="icon-btn" id="themeBtn" type="button" aria-label="Toggle dark mode">
+        <i class="fa-solid fa-moon"></i>
+      </button>
+
       <button class="signin-nav" id="openAuthBtn">
         <i class="fa-solid fa-user"></i>
-        Sign In
+        <span id="signInText">Sign In</span>
+      </button>
+
+      <button class="avatar hidden" id="avatarBtn" type="button" aria-label="Open settings">
+        <span id="avatarLetter">U</span>
       </button>
     </nav>
+
   </header>
 
+
+  <!-- ================= SIDEBAR ================= -->
   <aside class="sidebar" id="sidebar">
+
     <div class="sidebar-head">
       <div>
         <span class="small-label">CASE FILE SYSTEM</span>
-        <h3>Investigation</h3>
+        <h3 id="sidebarTitle">Investigation</h3>
       </div>
       <button class="close-sidebar" id="closeSidebar" aria-label="Close sidebar">
         <i class="fa-solid fa-xmark"></i>
@@ -53,249 +72,392 @@
     </div>
 
     <div class="sidebar-section">
-      <p>Main</p>
+      <p id="sidebarMainLabel">Main</p>
+
       <button class="side-link active" data-section="dashboard">
         <i class="fa-solid fa-gauge-high"></i>
-        <span>Dashboard</span>
+        <span id="dashboardText">Dashboard</span>
       </button>
+
       <button class="side-link" data-section="history">
         <i class="fa-solid fa-clock-rotate-left"></i>
-        <span>History</span>
+        <span id="historyText">History</span>
       </button>
     </div>
 
     <div class="sidebar-section">
-      <p>Account</p>
+      <p id="sidebarAccountLabel">Account</p>
+
       <button class="side-link" data-section="settings">
         <i class="fa-solid fa-sliders"></i>
-        <span>Settings</span>
+        <span id="settingsText">Settings</span>
       </button>
+
       <button class="side-link" id="sidebarLogin">
         <i class="fa-solid fa-right-to-bracket"></i>
-        <span>Login</span>
+        <span id="loginText">Login</span>
       </button>
     </div>
 
-    <div class="sidebar-bottom">
+    <!-- Only visible after login -->
+    <div class="sidebar-bottom hidden" id="sidebarBottom">
       <button class="side-link logout" id="logoutBtn">
         <i class="fa-solid fa-arrow-right-from-bracket"></i>
-        <span>Logout</span>
+        <span id="logoutText">Logout</span>
       </button>
     </div>
+
   </aside>
 
   <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
-  <!-- Main content area -->
+
+  <!-- ================= MAIN ================= -->
   <main id="home">
-    <!-- Main hero section with search box -->
+
+    <!-- ================= HERO ================= -->
     <section class="hero">
+
       <div class="hero-gif"></div>
       <div class="hero-overlay"></div>
+
       <div class="hero-content">
+
         <div class="eyebrow">
           <span class="live-dot"></span>
-          OSINT � MEDIA FORENSICS � SOURCE CHECK
+          OSINT • ARTICLE CHECK • SOURCE CHECK
         </div>
 
-        <h1>Don't Just Read It.<br /><span>Investigate It.</span></h1>
+        <h1 id="heroTitle">
+          Don't Just Read It.
+          <br />
+          <span>Investigate It.</span>
+        </h1>
 
-        <p class="hero-description">
-          Check a claim, article, image or URL and uncover signals that help you decide whether the information looks <b>Real</b>, <b>Fake</b> or <b>Uncertain</b>.
+        <p class="hero-description" id="heroDescription">
+          Check a claim, article or URL and uncover
+          signals that help you decide whether the information
+          looks <b>Real</b>, <b>Fake</b> or <b>Uncertain</b>.
         </p>
 
+        <!-- SEARCH BOX -->
         <div class="investigation-box">
+
           <div class="search-wrap">
             <i class="fa-solid fa-magnifying-glass"></i>
-            <input id="claimInput" type="text" placeholder="Enter a claim, URL or paste text to investigate..." autocomplete="off" />
-            <button class="clear-search" id="clearSearch" aria-label="Clear">
+            <input id="claimInput" type="text" placeholder="Enter a claim or paste an article URL to investigate..."
+              autocomplete="off" />
+            <button class="clear-search" id="clearSearch" aria-label="Clear" type="button">
               <i class="fa-solid fa-xmark"></i>
             </button>
           </div>
 
-          <button class="investigate-btn" id="investigateBtn">
-            <span>Investigate</span>
+          <button class="investigate-btn" id="investigateBtn" type="button">
+            <span id="investigateText">Investigate</span>
             <i class="fa-solid fa-arrow-up-right-from-square"></i>
           </button>
 
-          <button class="upload-btn" id="uploadBtn">
-            <i class="fa-solid fa-cloud-arrow-up"></i>
-            Upload Image
-          </button>
-
-          <input type="file" id="imageInput" accept="image/*" hidden />
         </div>
 
         <div class="quick-tools">
-          <span><i class="fa-solid fa-fingerprint"></i> Check Authorship</span>
-          <span><i class="fa-regular fa-image"></i> Analyze Media</span>
-          <span><i class="fa-solid fa-link"></i> Cross-Reference Sources</span>
+          <span>
+            <i class="fa-solid fa-fingerprint"></i>
+            <span id="quickAuthorship">Check Authorship</span>
+          </span>
+          <span>
+            <i class="fa-solid fa-newspaper"></i>
+            <span id="quickArticles">Check articles</span>
+          </span>
+          <span>
+            <i class="fa-solid fa-link"></i>
+            <span id="quickSources">Cross-Reference Sources</span>
+          </span>
         </div>
-      </div>
-    </section>
 
-    <section class="result-section hidden" id="resultSection">
-      <div class="result-card">
-        <div class="result-top">
+      </div>
+
+      <!-- ================= METHODS ================= -->
+      <section class="methods-section" id="methods">
+
+        <div class="section-heading">
           <div>
-            <span class="result-label">INVESTIGATION RESULT</span>
-            <h2 id="resultTitle">Analysis complete</h2>
+            <span class="section-kicker" id="methodsKicker">THREE WAYS TO INVESTIGATE</span>
+            <h2 id="methodsTitle">Choose your evidence.</h2>
           </div>
-          <span class="result-badge" id="resultBadge">UNCERTAIN</span>
+          <p id="methodsDescription">
+            Each route starts a different type of verification
+            workflow. Click a card to use it.
+          </p>
         </div>
 
-        <div class="confidence">
-          <div class="confidence-row">
-            <span>Confidence</span>
-            <strong id="confidenceText">72%</strong>
-          </div>
-          <div class="progress"><span id="confidenceBar"></span></div>
+        <div class="method-grid">
+
+          <!-- LINK -->
+          <article class="method-card" data-method="link">
+            <div class="method-image">
+              <div class="image-art">
+                <i class="fa-solid fa-link"></i>
+                <span class="orbit orbit-a"></span>
+                <span class="orbit orbit-b"></span>
+              </div>
+              <span class="image-number">01</span>
+            </div>
+            <div class="method-body">
+              <h3 id="linkTitle">Check by Link</h3>
+              <p id="linkDescription">Paste an article or website URL and inspect its source signals.</p>
+              <button class="card-action" type="button">
+                <span id="linkAction">Start link check</span>
+                <i class="fa-solid fa-arrow-right"></i>
+              </button>
+            </div>
+          </article>
+
+          <!-- SEARCH -->
+          <article class="method-card" data-method="search">
+            <div class="method-image">
+              <div class="image-art">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <span class="search-rays"></span>
+              </div>
+              <span class="image-number">02</span>
+            </div>
+            <div class="method-body">
+              <h3 id="searchTitle">Search a Claim</h3>
+              <p id="searchDescription">Enter a statement and compare it against your verification workflow.</p>
+              <button class="card-action" type="button">
+                <span id="searchAction">Search claim</span>
+                <i class="fa-solid fa-arrow-right"></i>
+              </button>
+            </div>
+          </article>
+
+          <!-- SHARE -->
+          <article class="method-card" data-method="share">
+            <div class="method-image">
+              <div class="image-art">
+                <i class="fa-solid fa-share-nodes"></i>
+                <span class="node n1"></span>
+                <span class="node n2"></span>
+                <span class="node n3"></span>
+              </div>
+              <span class="image-number">03</span>
+            </div>
+            <div class="method-body">
+              <h3 id="shareTitle">Check by Sharing</h3>
+              <p id="shareDescription">Share a claim into the detector workflow from your device.</p>
+              <button class="card-action" type="button">
+                <span id="shareAction">Share to check</span>
+                <i class="fa-solid fa-arrow-right"></i>
+              </button>
+            </div>
+          </article>
+
         </div>
 
-        <div class="result-grid">
-          <div>
-            <i class="fa-solid fa-circle-check"></i>
-            <div>
-              <b>Signal Summary</b>
-              <p id="signalText">Source consistency requires additional verification.</p>
-            </div>
-          </div>
-          <div>
-            <i class="fa-solid fa-shield-halved"></i>
-            <div>
-              <b>Recommended Action</b>
-              <p id="actionText">Cross-check the original source before sharing.</p>
-            </div>
-          </div>
-        </div>
-      </div>
+      </section>
+
     </section>
 
-    <section class="methods-section" id="about">
-      <div class="section-heading">
-        <div>
-          <span class="section-kicker">FOUR WAYS TO INVESTIGATE</span>
-          <h2>Choose your evidence.</h2>
-        </div>
-        <p>Each route starts a different type of verification workflow. Click a card to use it.</p>
-      </div>
 
-      <div class="method-grid">
-        <article class="method-card" data-method="link">
-          <div class="method-image">
-            <div class="image-art">
-              <i class="fa-solid fa-link"></i>
-              <span class="orbit orbit-a"></span>
-              <span class="orbit orbit-b"></span>
-            </div>
-            <span class="image-number">01</span>
-          </div>
-          <div class="method-body">
-            <div class="method-icon"><i class="fa-solid fa-link"></i></div>
-            <h3>Check by Link</h3>
-            <p>Paste an article or website URL and inspect its source signals.</p>
-            <button class="card-action">Start link check <i class="fa-solid fa-arrow-right"></i></button>
-          </div>
-        </article>
+    <!-- ================= RESULT POPUP ================= -->
+    <div class="result-backdrop" id="resultSection" aria-hidden="true">
 
-        <article class="method-card" data-method="image">
-          <div class="method-image">
-            <div class="image-art">
-              <i class="fa-regular fa-image"></i>
-              <span class="scan-line"></span>
-              <span class="corner c1"></span><span class="corner c2"></span>
-            </div>
-            <span class="image-number">02</span>
-          </div>
-          <div class="method-body">
-            <div class="method-icon"><i class="fa-regular fa-image"></i></div>
-            <h3>Check an Image</h3>
-            <p>Upload media to explore visual manipulation and authenticity signals.</p>
-            <button class="card-action">Analyze image <i class="fa-solid fa-arrow-right"></i></button>
-          </div>
-        </article>
+      <div class="result-popup" id="resultPopup" role="dialog" aria-modal="true" aria-labelledby="resultTitle">
 
-        <article class="method-card" data-method="search">
-          <div class="method-image">
-            <div class="image-art">
-              <i class="fa-solid fa-magnifying-glass"></i>
-              <span class="search-rays"></span>
-            </div>
-            <span class="image-number">03</span>
-          </div>
-          <div class="method-body">
-            <div class="method-icon"><i class="fa-solid fa-magnifying-glass"></i></div>
-            <h3>Search a Claim</h3>
-            <p>Enter a statement and compare it against your verification workflow.</p>
-            <button class="card-action">Search claim <i class="fa-solid fa-arrow-right"></i></button>
-          </div>
-        </article>
-
-        <article class="method-card" data-method="share">
-          <div class="method-image">
-            <div class="image-art">
-              <i class="fa-solid fa-share-nodes"></i>
-              <span class="node n1"></span><span class="node n2"></span><span class="node n3"></span>
-            </div>
-            <span class="image-number">04</span>
-          </div>
-          <div class="method-body">
-            <div class="method-icon"><i class="fa-solid fa-share-nodes"></i></div>
-            <h3>Check by Sharing</h3>
-            <p>Share a claim into the detector workflow from your device.</p>
-            <button class="card-action">Share to check <i class="fa-solid fa-arrow-right"></i></button>
-          </div>
-        </article>
-      </div>
-    </section>
-
-    <section class="stats-strip">
-      <div><i class="fa-solid fa-bolt"></i><span><b>Fast</b> investigation flow</span></div>
-      <div><i class="fa-solid fa-fingerprint"></i><span><b>Multi-signal</b> verification</span></div>
-      <div><i class="fa-solid fa-clock-rotate-left"></i><span><b>History</b> of your checks</span></div>
-      <div><i class="fa-solid fa-lock"></i><span><b>Private</b> account controls</span></div>
-    </section>
-  </main>
-
-  <div class="modal-backdrop" id="authModal">
-    <div class="auth-modal">
-      <div class="auth-content">
-        <button class="modal-close" id="closeAuth" aria-label="Close">
+        <button class="modal-close" id="closeResult" type="button" aria-label="Close result">
           <i class="fa-solid fa-xmark"></i>
         </button>
 
-        <div class="auth-logo"><i class="fa-solid fa-fingerprint"></i></div>
+        <div class="result-head">
+
+          <div class="result-icon">
+            <i class="fa-solid fa-shield-halved" id="resultIconI"></i>
+          </div>
+
+          <div>
+            <span class="result-badge" id="resultBadge">ANALYZING</span>
+            <h2 id="resultTitle">Analyzing...</h2>
+            <p id="signalText">Sending the news text to the Python ML backend.</p>
+          </div>
+
+        </div>
+
+        <section class="article-details hidden" id="articleDetails" aria-label="Fetched article details">
+          <div class="article-detail-row">
+            <span id="publisherLabel">Publisher</span>
+            <strong id="articlePublisher"></strong>
+          </div>
+          <h3 id="articleTitle"></h3>
+          <a class="article-source-link" id="articleSourceLink" target="_blank" rel="noopener noreferrer">Open original article</a>
+          <span class="article-preview-label" id="articlePreviewLabel">Extracted text preview</span>
+          <p id="articlePreview"></p>
+        </section>
+
+        <ul class="result-checks" id="resultChecks"></ul>
+
+        <div class="result-note">
+          <i class="fa-solid fa-circle-info"></i>
+          <div class="result-note-copy">
+            <span id="actionText">Please wait while the trained model processes the input.</span>
+            <strong class="ai-disclaimer" id="aiDisclaimer">AI can make mistakes. Verify important claims with trusted sources.</strong>
+          </div>
+        </div>
+
+        <div class="source-links hidden" id="resultSources">
+          <span id="sourceLinksLabel">Look up this claim</span>
+          <a id="factCheckLink" target="_blank" rel="noopener noreferrer">Search fact checks</a>
+          <a id="independentSourcesLink" target="_blank" rel="noopener noreferrer">Search independent sources</a>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- ================= STATS ================= -->
+    <section class="stats-strip">
+
+      <div>
+        <i class="fa-solid fa-bolt"></i>
+        <span><b id="fastText">Fast</b> <span id="fastDescription">investigation flow</span></span>
+      </div>
+
+      <div>
+        <i class="fa-solid fa-fingerprint"></i>
+        <span><b id="multiText">Multi-signal</b> <span id="multiDescription">verification</span></span>
+      </div>
+
+      <div>
+        <i class="fa-solid fa-clock-rotate-left"></i>
+        <span><b id="historyStatText">History</b> <span id="historyStatDescription">of your checks</span></span>
+      </div>
+
+      <div>
+        <i class="fa-solid fa-lock"></i>
+        <span><b id="privateText">Private</b> <span id="privateDescription">account controls</span></span>
+      </div>
+
+    </section>
+
+
+    <!-- ================= ABOUT ================= -->
+    <section class="about-section" id="about">
+
+      <div class="section-heading">
+        <div>
+          <span class="section-kicker">ABOUT</span>
+          <h2>Built to help you pause before you share.</h2>
+        </div>
+        <p>
+          Fake News Detector gives you a quick first check on suspicious
+          claims and articles, and a starting point for deeper verification.
+        </p>
+      </div>
+
+      <div class="about-grid">
+
+        <article class="about-card">
+          <i class="fa-solid fa-bullseye"></i>
+          <h3>Our mission</h3>
+          <p>Make misinformation easier to spot by giving everyone a simple first check for claims and news articles.
+          </p>
+        </article>
+
+        <article class="about-card">
+          <i class="fa-solid fa-microchip"></i>
+          <h3>How it works</h3>
+          <p>Your text is sent to a machine learning model that compares its writing patterns with the training data
+            and returns a likely real, likely fake, or uncertain label.</p>
+        </article>
+
+        <article class="about-card">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <h3>Limitations</h3>
+          <p>The model does not verify facts. Always cross-check important claims with trusted publishers and official
+            sources before sharing.</p>
+        </article>
+
+        <article class="about-card">
+          <i class="fa-solid fa-lock"></i>
+          <h3>Your data</h3>
+          <p>History and settings are stored locally in your browser. History is available only after you sign in.</p>
+        </article>
+
+      </div>
+
+    </section>
+
+  </main>
+
+
+  <!-- ================= AUTH MODAL ================= -->
+  <div class="modal-backdrop" id="authModal">
+
+    <div class="auth-modal">
+
+      <div class="auth-content">
+
+        <button class="modal-close" id="closeAuth" type="button" aria-label="Close">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+
+        <div class="auth-logo">
+          <i class="fa-solid fa-fingerprint"></i>
+        </div>
+
         <span class="section-kicker">CASE FILE ACCESS</span>
+
         <h2 id="authHeading">Welcome back</h2>
+
         <p class="auth-subtitle" id="authSubtitle">Login to continue your investigations.</p>
 
         <form id="authForm">
+
+          <!-- NAME -->
           <label id="nameField" class="field hidden">
-            <span>Full name</span>
-            <div><i class="fa-regular fa-user"></i><input type="text" placeholder="Your name" /></div>
+            <span id="nameLabel">Full name</span>
+            <div>
+              <i class="fa-regular fa-user"></i>
+              <input id="authName" type="text" placeholder="Your name" />
+            </div>
           </label>
 
+          <!-- EMAIL -->
           <label class="field">
-            <span>Email</span>
-            <div><i class="fa-regular fa-envelope"></i><input type="email" placeholder="you@example.com" required /></div>
+            <span id="emailLabel">Email</span>
+            <div>
+              <i class="fa-regular fa-envelope"></i>
+              <input id="authEmail" type="email" placeholder="you@example.com" required />
+            </div>
           </label>
 
+          <!-- PASSWORD -->
           <label class="field">
-            <span>Password</span>
-            <div><i class="fa-solid fa-lock"></i><input type="password" placeholder="��������" required /></div>
+            <span id="passwordLabel">Password</span>
+            <div>
+              <i class="fa-solid fa-lock"></i>
+              <input id="authPassword" type="password" placeholder="Enter your password" required />
+            </div>
           </label>
 
+          <!-- CONFIRM PASSWORD -->
           <label id="confirmField" class="field hidden">
-            <span>Confirm password</span>
-            <div><i class="fa-solid fa-shield-halved"></i><input type="password" placeholder="Repeat password" /></div>
+            <span id="confirmLabel">Confirm password</span>
+            <div>
+              <i class="fa-solid fa-shield-halved"></i>
+              <input id="authConfirmPassword" type="password" placeholder="Repeat password" />
+            </div>
           </label>
 
           <div class="form-row" id="loginOptions">
-            <label class="remember"><input type="checkbox" /> Remember me</label>
-            <button type="button" class="text-btn">Forgot password?</button>
+            <label class="remember">
+              <input type="checkbox" id="rememberMe" />
+              <span id="rememberText">Remember me</span>
+            </label>
+            <button type="button" class="text-btn" id="forgotPasswordBtn">Forgot password?</button>
           </div>
 
           <button class="auth-submit" type="submit" id="authSubmit">Login</button>
+
         </form>
 
         <p class="auth-switch-text">
@@ -303,119 +465,154 @@
           <button type="button" class="text-link" id="authSwitchLink" data-auth="signup">Create one</button>
         </p>
 
-        <p class="auth-privacy">By continuing, you agree to our Terms and Privacy Policy.</p>
-        <p class="demo-note">Demo frontend � connect this form to your backend authentication later.</p>
+        <p class="auth-privacy" id="authPrivacy">
+          By continuing, you agree to our Terms and Privacy Policy.
+        </p>
+
       </div>
+
     </div>
+
   </div>
 
+
+  <!-- ================= SETTINGS PANEL ================= -->
   <div class="settings-panel" id="settingsPanel">
+
     <div class="settings-head">
       <div>
         <span class="section-kicker">PREFERENCES</span>
-        <h2>Settings</h2>
+        <h2 id="settingsPanelTitle">Settings</h2>
       </div>
-      <button id="closeSettings"><i class="fa-solid fa-xmark"></i></button>
+      <button id="closeSettings" type="button" aria-label="Close settings">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
     </div>
 
     <div class="settings-groups">
+
+      <!-- ACCOUNT -->
       <div class="settings-group">
-        <div class="group-label">Account &amp; preferences</div>
+        <div class="group-label" id="accountGroupLabel">Account &amp; preferences</div>
 
         <div class="setting-item">
           <div>
-            <b>Manage account</b>
-            <small>Update profile, login access and saved investigations.</small>
+            <b id="manageAccountText">Manage account</b>
+            <small id="manageAccountDescription">Update profile, login access and saved investigations.</small>
           </div>
-          <button type="button" class="setting-action">Open</button>
+          <button type="button" class="setting-action" data-setting-action="account" id="accountOpenBtn">Open</button>
         </div>
 
         <div class="setting-item">
           <div>
-            <b>Manage password</b>
-            <small>Change your password and recovery settings.</small>
+            <b id="managePasswordText">Manage password</b>
+            <small id="managePasswordDescription">Change your password and recovery settings.</small>
           </div>
-          <button type="button" class="setting-action">Edit</button>
+          <button type="button" class="setting-action" data-setting-action="password">Edit</button>
         </div>
       </div>
 
+      <!-- APPEARANCE -->
       <div class="settings-group">
-        <div class="group-label">Appearance</div>
+        <div class="group-label" id="appearanceGroupLabel">Appearance</div>
 
         <div class="setting-item">
           <div>
-            <b>Compact animations</b>
-            <small>Reduce card and page motion.</small>
+            <b id="darkText">Dark mode</b>
+            <small id="darkDescription">Use a darker theme that is easier on the eyes.</small>
           </div>
           <label class="switch">
-            <input type="checkbox" id="motionToggle" />
+            <input type="checkbox" id="darkToggle" />
             <span></span>
           </label>
         </div>
 
-        <div class="setting-item">
-          <div>
-            <b>Dark mode</b>
-            <small>Use the default investigation theme.</small>
-          </div>
-          <label class="switch">
-            <input type="checkbox" id="themeToggle" checked />
-            <span></span>
-          </label>
-        </div>
       </div>
 
+      <!-- LANGUAGE -->
       <div class="settings-group">
-        <div class="group-label">Language &amp; notifications</div>
+        <div class="group-label" id="languageGroupLabel">Language &amp; notifications</div>
 
         <div class="setting-item">
           <div>
-            <b>Language</b>
-            <small>English (default)</small>
+            <b id="languageText">Language</b>
+            <small id="languageSettingText">English</small>
           </div>
-          <button type="button" class="setting-action">Change</button>
+          <button type="button" class="setting-action" data-setting-action="language">Change</button>
         </div>
 
+        <!-- NOTIFICATIONS -->
         <div class="setting-item">
           <div>
-            <b>Notifications</b>
-            <small>Alerts for new reports and investigation updates.</small>
+            <b id="notificationsText">Notifications</b>
+            <small id="notificationsDescription">Alerts for new reports and investigation updates.</small>
           </div>
           <label class="switch">
-            <input type="checkbox" checked />
+            <input type="checkbox" id="notificationToggle" checked />
             <span></span>
           </label>
         </div>
       </div>
 
+      <!-- HISTORY -->
       <div class="settings-group">
-        <div class="group-label">History &amp; data</div>
+        <div class="group-label" id="historyGroupLabel">History &amp; data</div>
 
         <div class="setting-item">
           <div>
-            <b>History</b>
-            <small>Review prior investigations and saved verdicts.</small>
+            <b id="historySettingTitle">History</b>
+            <small id="historySettingDescription">Review prior investigations and saved results.</small>
           </div>
-          <button type="button" class="setting-action">View</button>
+          <button type="button" class="setting-action" data-setting-action="history">View</button>
         </div>
       </div>
+
     </div>
 
     <div class="setting-note">
       <i class="fa-solid fa-circle-info"></i>
-      <span>These settings are stored locally in your browser.</span>
+      <span id="settingNoteText">These settings are stored locally in your browser.</span>
     </div>
+
   </div>
 
+
+  <!-- ================= SETTINGS ACTION MODAL ================= -->
+  <div class="settings-action-backdrop" id="settingsActionBackdrop" aria-hidden="true">
+
+    <div class="settings-action-modal" role="dialog" aria-modal="true" aria-labelledby="settingsActionTitle">
+
+      <button class="modal-close settings-action-close" id="closeSettingsAction" type="button" aria-label="Close">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+
+      <span class="section-kicker" id="settingsActionKicker">SETTINGS</span>
+
+      <h2 id="settingsActionTitle">Settings</h2>
+
+      <p class="settings-action-subtitle" id="settingsActionSubtitle"></p>
+
+      <div id="settingsActionContent"></div>
+
+    </div>
+
+  </div>
+
+
+  <!-- ================= TOAST ================= -->
   <div class="toast" id="toast">
     <i class="fa-solid fa-circle-check"></i>
     <span id="toastText">Done</span>
   </div>
 
+
+  <!-- ================= FOOTER ================= -->
   <footer>
-    <p>� 2026 Fake News Detector � Detective Investigation Dashboard</p>
+    <p id="footerText">© 2026 Fake News Detector • Investigation Dashboard</p>
   </footer>
 
   <script src="script.js"></script>
+
 </body>
+
 </html>
