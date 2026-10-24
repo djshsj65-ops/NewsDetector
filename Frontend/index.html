@@ -123,11 +123,6 @@
 
       <div class="hero-content">
 
-        <div class="eyebrow">
-          <span class="live-dot"></span>
-          OSINT • ARTICLE CHECK • SOURCE CHECK
-        </div>
-
         <h1 id="heroTitle">
           Don't Just Read It.
           <br />
@@ -160,18 +155,18 @@
         </div>
 
         <div class="quick-tools">
-          <span>
+          <button class="quick-tool" id="quickAuthorshipButton" type="button">
             <i class="fa-solid fa-fingerprint"></i>
-            <span id="quickAuthorship">Check Authorship</span>
-          </span>
-          <span>
+            <span id="quickAuthorship">Find listed author</span>
+          </button>
+          <button class="quick-tool" id="quickArticlesButton" type="button">
             <i class="fa-solid fa-newspaper"></i>
             <span id="quickArticles">Check articles</span>
-          </span>
-          <span>
+          </button>
+          <button class="quick-tool" id="quickSourcesButton" type="button">
             <i class="fa-solid fa-link"></i>
             <span id="quickSources">Cross-Reference Sources</span>
-          </span>
+          </button>
         </div>
 
       </div>
@@ -182,11 +177,10 @@
         <div class="section-heading">
           <div>
             <span class="section-kicker" id="methodsKicker">THREE WAYS TO INVESTIGATE</span>
-            <h2 id="methodsTitle">Choose your evidence.</h2>
+            <h2 id="methodsTitle">What do you want to check?</h2>
           </div>
           <p id="methodsDescription">
-            Each route starts a different type of verification
-            workflow. Click a card to use it.
+            Choose a link, claim, or sharing option.
           </p>
         </div>
 
@@ -243,10 +237,10 @@
               <span class="image-number">03</span>
             </div>
             <div class="method-body">
-              <h3 id="shareTitle">Check by Sharing</h3>
-              <p id="shareDescription">Share a claim into the detector workflow from your device.</p>
+              <h3 id="shareTitle">Share this website</h3>
+              <p id="shareDescription">Send a link to this website to someone.</p>
               <button class="card-action" type="button">
-                <span id="shareAction">Share to check</span>
+                <span id="shareAction">Share link</span>
                 <i class="fa-solid fa-arrow-right"></i>
               </button>
             </div>
@@ -260,7 +254,7 @@
 
 
     <!-- ================= RESULT POPUP ================= -->
-    <div class="result-backdrop" id="resultSection" aria-hidden="true">
+    <div class="result-backdrop hidden" id="resultSection" aria-hidden="true">
 
       <div class="result-popup" id="resultPopup" role="dialog" aria-modal="true" aria-labelledby="resultTitle">
 
@@ -275,11 +269,23 @@
           </div>
 
           <div>
-            <span class="result-badge" id="resultBadge">ANALYZING</span>
-            <h2 id="resultTitle">Analyzing...</h2>
-            <p id="signalText">Sending the news text to the Python ML backend.</p>
+            <span class="result-badge" id="resultBadge">RESULT</span>
+            <h2 id="resultTitle">Check result</h2>
+            <p id="signalText">Your result appears here after you run a check.</p>
           </div>
 
+        </div>
+
+        <div class="model-confidence hidden" id="confidenceBlock">
+          <div class="confidence-heading">
+            <strong>Model confidence</strong>
+            <strong id="confidenceText">--%</strong>
+          </div>
+          <div class="confidence-track" role="progressbar" aria-label="Relative model confidence" aria-valuemin="0"
+            aria-valuemax="100" aria-valuenow="0">
+            <span id="confidenceBar"></span>
+          </div>
+          <small>Relative model score, not a calibrated probability or proof of truth.</small>
         </div>
 
         <section class="article-details hidden" id="articleDetails" aria-label="Fetched article details">
@@ -287,8 +293,13 @@
             <span id="publisherLabel">Publisher</span>
             <strong id="articlePublisher"></strong>
           </div>
+          <div class="article-detail-row">
+            <span id="authorLabel">Listed author</span>
+            <strong id="articleAuthor">No author metadata found</strong>
+          </div>
           <h3 id="articleTitle"></h3>
-          <a class="article-source-link" id="articleSourceLink" target="_blank" rel="noopener noreferrer">Open original article</a>
+          <a class="article-source-link" id="articleSourceLink" target="_blank" rel="noopener noreferrer">Open original
+            article</a>
           <span class="article-preview-label" id="articlePreviewLabel">Extracted text preview</span>
           <p id="articlePreview"></p>
         </section>
@@ -298,8 +309,8 @@
         <div class="result-note">
           <i class="fa-solid fa-circle-info"></i>
           <div class="result-note-copy">
-            <span id="actionText">Please wait while the trained model processes the input.</span>
-            <strong class="ai-disclaimer" id="aiDisclaimer">AI can make mistakes. Verify important claims with trusted sources.</strong>
+            <span id="actionText">Enter a claim or article URL and select Investigate.</span>
+            <strong class="ai-disclaimer" id="aiDisclaimer">Please check reliable sources before trusting or sharing a claim.</strong>
           </div>
         </div>
 
@@ -345,7 +356,7 @@
       <div class="section-heading">
         <div>
           <span class="section-kicker">ABOUT</span>
-          <h2>Built to help you pause before you share.</h2>
+          <h2>Check a claim before sharing it.</h2>
         </div>
         <p>
           Fake News Detector gives you a quick first check on suspicious

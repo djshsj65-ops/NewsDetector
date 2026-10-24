@@ -1,4 +1,5 @@
 import ipaddress
+import json
 import math
 import socket
 from html.parser import HTMLParser
@@ -7,7 +8,7 @@ from urllib.parse import urlparse
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 import joblib
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 
 app = Flask(__name__)
@@ -22,6 +23,37 @@ MAX_PAGE_BYTES = 1_000_000
 UNCERTAIN_MARGIN_THRESHOLD = math.log(1.25)
 
 
+def find_author_metadata(value):
+    if isinstance(value, list):
+        for item in value:
+            author = find_author_metadata(item)
+            if author:
+                return author
+        return ""
+
+    if not isinstance(value, dict):
+        return ""
+
+    author = value.get("author")
+    if isinstance(author, str) and author.strip():
+        return author.strip()
+    if isinstance(author, dict):
+        name = author.get("name")
+        if isinstance(name, str) and name.strip():
+            return name.strip()
+    if isinstance(author, list):
+        author_name = find_author_metadata(author)
+        if author_name:
+            return author_name
+
+    for child in value.values():
+        author_name = find_author_metadata(child)
+        if author_name:
+            return author_name
+
+    return ""
+
+
 class ArticleTextParser(HTMLParser):
     ignored_tags = {"script", "style", "noscript", "svg", "nav", "header", "footer", "aside", "form"}
 
@@ -32,7 +64,10 @@ class ArticleTextParser(HTMLParser):
         self.title_parts = []
         self.title_meta = ""
         self.publisher = ""
+        self.author = ""
         self.in_title = False
+        self.in_json_ld = False
+        self.json_ld_parts = []
 
     def handle_starttag(self, tag, attrs):
         attributes = dict(attrs)
@@ -45,6 +80,13 @@ class ArticleTextParser(HTMLParser):
                 self.title_meta = content
             elif key in {"og:site_name", "application-name"} and content and not self.publisher:
                 self.publisher = content
+            elif key in {"author", "article:author", "citation_author", "parsely-author"} and content and not self.author:
+                self.author = content[:160]
+
+        if tag == "script" and attributes.get("type", "").split(";", 1)[0].strip().lower() == "application/ld+json":
+            self.in_json_ld = True
+            self.json_ld_parts = []
+            return
 
         if tag == "title":
             self.in_title = True
@@ -57,6 +99,16 @@ class ArticleTextParser(HTMLParser):
             self.ignored.append(tag)
 
     def handle_endtag(self, tag):
+        if tag == "script" and self.in_json_ld:
+            try:
+                json_data = json.loads("".join(self.json_ld_parts))
+                self.author = self.author or find_author_metadata(json_data)[:160]
+            except (json.JSONDecodeError, TypeError):
+                pass
+            self.in_json_ld = False
+            self.json_ld_parts = []
+            return
+
         if tag == "title":
             self.in_title = False
             return
@@ -65,6 +117,10 @@ class ArticleTextParser(HTMLParser):
             self.ignored.pop()
 
     def handle_data(self, data):
+        if self.in_json_ld:
+            self.json_ld_parts.append(data)
+            return
+
         text = data.strip()
         if text and self.in_title:
             self.title_parts.append(text)
@@ -142,6 +198,7 @@ def fetch_article_text(url):
         "text": article_text,
         "title": page_title[:200] or "Untitled article",
         "publisher": publisher[:120],
+        "author": parser.author,
         "url": final_url,
         "preview": article_text[:500]
     }
@@ -149,9 +206,17 @@ def fetch_article_text(url):
 
 @app.route("/")
 def home():
-    return jsonify({
-        "message": "Fake News Detection API is running!"
-    })
+    return send_from_directory(app.root_path, "index.html")
+
+
+@app.route("/style.css")
+def styles():
+    return send_from_directory(app.root_path, "style.css")
+
+
+@app.route("/script.js")
+def javascript():
+    return send_from_directory(app.root_path, "script.js")
 
 
 @app.route("/predict", methods=["POST"])
@@ -200,10 +265,12 @@ def predict():
 
         prediction = model.predict(text_vector)[0]
         margin = abs(float(model.decision_function(text_vector)[0]))
+        confidence = round(50 + 50 * (1 - math.exp(-margin)))
 
         result = {
             "prediction": bool(prediction == 1),
             "uncertain": margin < UNCERTAIN_MARGIN_THRESHOLD,
+            "confidence": confidence,
             "word_count": len(news_text.split())
         }
 
@@ -211,6 +278,7 @@ def predict():
             result["article"] = {
                 "title": article_details["title"],
                 "publisher": article_details["publisher"],
+                "author": article_details["author"],
                 "url": article_details["url"],
                 "preview": article_details["preview"]
             }
@@ -224,4 +292,4 @@ def predict():
 
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5000)
+    app.run(host="127.0.0.1", port=5000, debug=False)
