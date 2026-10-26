@@ -1,23 +1,23 @@
 import ipaddress
 import math
 import socket
+from pathlib import Path
 from html.parser import HTMLParser
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 import joblib
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 
 app = Flask(__name__)
 CORS(app)
 
-# Load trained model
-model = joblib.load("model.pkl")
+FRONTEND_DIR = Path(__file__).resolve().parent
 
-# Load TF-IDF vectorizer
-vectorizer = joblib.load("vectorizer.pkl")
+model = joblib.load(FRONTEND_DIR / "model.pkl")
+vectorizer = joblib.load(FRONTEND_DIR / "vectorizer.pkl")
 MAX_PAGE_BYTES = 1_000_000
 UNCERTAIN_MARGIN_THRESHOLD = math.log(1.25)
 
@@ -154,6 +154,16 @@ def home():
     })
 
 
+@app.route("/app/")
+def frontend():
+    return send_from_directory(FRONTEND_DIR, "index.html")
+
+
+@app.route("/app/<path:filename>")
+def frontend_assets(filename):
+    return send_from_directory(FRONTEND_DIR, filename)
+
+
 @app.route("/predict", methods=["POST"])
 def predict():
     try:
@@ -224,4 +234,4 @@ def predict():
 
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5000)
+    app.run(host="127.0.0.1", port=5000, debug=False)

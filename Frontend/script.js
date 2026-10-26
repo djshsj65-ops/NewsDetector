@@ -517,7 +517,7 @@ async function investigate(value = input.value.trim()) {
 
   try {
 
-    const response = await fetch("http://127.0.0.1:5000/predict", {
+    const response = await fetch("/predict", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text: analysisInput, is_url: isUrl })
@@ -647,13 +647,19 @@ async function investigate(value = input.value.trim()) {
       updateClearButton();
     }
 
+    const connectionFailed = error instanceof TypeError && error.message === "Failed to fetch";
+
     setResult({
       state: "fake",
       icon: "fa-circle-exclamation",
       title: "ERROR",
-      subtitle: error.message || "Unable to connect to the Python backend.",
+      subtitle: connectionFailed
+        ? "The Flask API could not be reached."
+        : error.message || "Unable to connect to the Python backend.",
       badge: "ERROR",
-      action: "Make sure Flask is running with: py app.py",
+      action: connectionFailed
+        ? "Start Flask with: py app.py, then open the app at http://127.0.0.1:5000/app/."
+        : "Make sure Flask is running with: py app.py",
       checks: []
     });
 
