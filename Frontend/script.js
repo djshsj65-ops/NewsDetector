@@ -18,12 +18,18 @@ const clearSearch = $("clearSearch");
 const resultSection = $("resultSection");
 const resultTitle = $("resultTitle");
 const resultBadge = $("resultBadge");
+const confidenceCard = $("confidenceCard");
+const confidenceValue = $("confidenceValue");
+const confidenceTrack = $("confidenceTrack");
+const confidenceBar = $("confidenceBar");
 const signalText = $("signalText");
 const actionText = $("actionText");
+const newsEvidence = $("newsEvidence");
+const evidenceStatus = $("evidenceStatus");
+const evidenceList = $("evidenceList");
 
 const authModal = $("authModal");
 const authSwitchLink = $("authSwitchLink");
-
 const notificationToggle = $("notificationToggle");
 const darkToggle = $("darkToggle");
 
@@ -34,9 +40,6 @@ const settingsActionSubtitle = $("settingsActionSubtitle");
 const settingsActionContent = $("settingsActionContent");
 
 let toastTimer;
-let pendingHistory = false; /* open history right after login */
-
-
 /* =========================================================
    TOAST
 ========================================================= */
@@ -60,44 +63,31 @@ function showToast(message) {
 }
 
 
-/* =========================================================
-   AUTH STATE (avatar + login / logout visibility)
-========================================================= */
-
 function isLoggedIn() {
   return localStorage.getItem("fncDemoLoggedIn") === "true";
 }
 
 
 function getProfile() {
-
   try {
     return JSON.parse(localStorage.getItem("fncProfile") || "{}");
   } catch {
     return {};
   }
-
 }
 
 
 function updateAuthUI() {
-
   const loggedIn = isLoggedIn();
   const profile = getProfile();
-
   const source = (profile.name || profile.email || "U").trim();
 
   $("avatarLetter").textContent = source.charAt(0).toUpperCase() || "U";
   $("avatarBtn").title = profile.name || profile.email || "Account";
-
-  /* navbar */
   $("openAuthBtn").classList.toggle("hidden", loggedIn);
   $("avatarBtn").classList.toggle("hidden", !loggedIn);
-
-  /* sidebar */
   $("sidebarLogin").classList.toggle("hidden", loggedIn);
   $("sidebarBottom").classList.toggle("hidden", !loggedIn);
-
 }
 
 
@@ -156,87 +146,49 @@ $("closeSidebar").addEventListener("click", closeSidebar);
 sidebarOverlay.addEventListener("click", closeSidebar);
 
 
-/* =========================================================
-   AUTH MODAL
-========================================================= */
-
 function openAuth(mode = "login") {
-
   authModal.classList.add("show");
   document.body.classList.add("modal-open");
-
   setAuthMode(mode);
-
 }
 
 
 function closeAuth() {
-
   authModal.classList.remove("show");
   document.body.classList.remove("modal-open");
-
 }
 
 
 $("openAuthBtn").addEventListener("click", () => openAuth("login"));
-
 
 $("sidebarLogin").addEventListener("click", () => {
   closeSidebar();
   openAuth("login");
 });
 
-
-$("closeAuth").addEventListener("click", () => {
-  pendingHistory = false;
-  closeAuth();
-});
-
+$("closeAuth").addEventListener("click", closeAuth);
 
 authModal.addEventListener("click", (event) => {
-
-  if (event.target === authModal) {
-    pendingHistory = false;
-    closeAuth();
-  }
-
+  if (event.target === authModal) closeAuth();
 });
 
 
-/* =========================================================
-   LOGIN / SIGNUP
-========================================================= */
-
 function setAuthMode(mode) {
-
   const signup = mode === "signup";
 
-  $("authHeading").textContent = signup ? "Create account" : "Welcome back";
-
+  $("authHeading").textContent = signup ? "Create Account" : "Sign In";
   $("authSubtitle").textContent = signup
-    ? "Create your case file and start tracking investigations."
-    : "Login to continue your investigations.";
-
+    ? "Create a profile in this browser."
+    : "Sign in using this browser.";
   $("authSubmit").textContent = signup ? "Create Account" : "Login";
-
+  $("authSubmit").dataset.mode = signup ? "signup" : "login";
   $("nameField").classList.toggle("hidden", !signup);
   $("confirmField").classList.toggle("hidden", !signup);
   $("loginOptions").classList.toggle("hidden", signup);
 
-  if (signup) {
-
-    $("switchPrompt").textContent = "Already have an account?";
-    authSwitchLink.textContent = "Log in";
-    authSwitchLink.dataset.auth = "login";
-
-  } else {
-
-    $("switchPrompt").textContent = "Need an account?";
-    authSwitchLink.textContent = "Create one";
-    authSwitchLink.dataset.auth = "signup";
-
-  }
-
+  $("switchPrompt").textContent = signup ? "Already have an account?" : "Need an account?";
+  authSwitchLink.textContent = signup ? "Sign In" : "Create one";
+  authSwitchLink.dataset.auth = signup ? "login" : "signup";
 }
 
 
@@ -245,16 +197,10 @@ authSwitchLink.addEventListener("click", () => {
 });
 
 
-/* =========================================================
-   AUTH FORM
-========================================================= */
-
 $("authForm").addEventListener("submit", (event) => {
-
   event.preventDefault();
 
-  const signup = $("authSubmit").textContent === "Create Account";
-
+  const signup = $("authSubmit").dataset.mode === "signup";
   const email = $("authEmail").value.trim();
   const password = $("authPassword").value;
 
@@ -264,7 +210,6 @@ $("authForm").addEventListener("submit", (event) => {
   }
 
   if (signup) {
-
     const name = $("authName").value.trim();
     const confirmPassword = $("authConfirmPassword").value;
 
@@ -272,55 +217,27 @@ $("authForm").addEventListener("submit", (event) => {
       showToast("Please enter your name.");
       return;
     }
-
     if (password !== confirmPassword) {
       showToast("Passwords do not match.");
       return;
     }
 
     localStorage.setItem("fncProfile", JSON.stringify({ name, email }));
-    localStorage.setItem("fncDemoLoggedIn", "true");
-
-    showToast("Account created successfully.");
-
   } else {
-
     const oldProfile = getProfile();
-
-    localStorage.setItem(
-      "fncProfile",
-      JSON.stringify({
-        name: oldProfile.name || "",
-        email
-      })
-    );
-
-    localStorage.setItem("fncDemoLoggedIn", "true");
-
-    showToast("Login successful.");
-
+    localStorage.setItem("fncProfile", JSON.stringify({ name: oldProfile.name || "", email }));
   }
 
+  localStorage.setItem("fncDemoLoggedIn", "true");
   $("authForm").reset();
-
   updateAuthUI();
   closeAuth();
-
-  /* user tried to open history before login */
-  if (pendingHistory) {
-    pendingHistory = false;
-    showHistory();
-  }
-
+  showToast(signup ? "Account profile created in this browser." : "Signed in.");
 });
 
 
-/* =========================================================
-   FORGOT PASSWORD
-========================================================= */
-
 $("forgotPasswordBtn").addEventListener("click", () => {
-  showToast("Password recovery will be connected to the authentication backend later.");
+  showToast("Password recovery is not available.");
 });
 
 
@@ -344,36 +261,6 @@ clearSearch.addEventListener("click", () => {
 
 
 /* =========================================================
-   HISTORY STORAGE
-========================================================= */
-
-function getHistory() {
-
-  try {
-    return JSON.parse(localStorage.getItem("fncHistory") || "[]");
-  } catch {
-    return [];
-  }
-
-}
-
-
-function saveHistory(text, prediction) {
-
-  const history = getHistory();
-
-  history.unshift({
-    text,
-    prediction,
-    date: new Date().toLocaleString()
-  });
-
-  localStorage.setItem("fncHistory", JSON.stringify(history.slice(0, 30)));
-
-}
-
-
-/* =========================================================
    ESCAPE HTML
 ========================================================= */
 
@@ -391,6 +278,15 @@ function escapeHTML(value) {
 
   });
 
+}
+
+function safeHttpUrl(value) {
+  try {
+    const url = new URL(value);
+    return ["http:", "https:"].includes(url.protocol) ? url.href : null;
+  } catch {
+    return null;
+  }
 }
 
 
@@ -453,8 +349,39 @@ function buildSourceLinks(query) {
 
 
 function resetResultExtras() {
+  confidenceCard.classList.add("hidden");
   articleDetails.classList.add("hidden");
   resultSources.classList.add("hidden");
+  newsEvidence.classList.add("hidden");
+  evidenceList.innerHTML = "";
+}
+
+function renderNewsEvidence(evidence) {
+  if (!evidence || typeof evidence !== "object") return;
+
+  evidenceStatus.textContent = evidence.message || "Related news articles are unavailable.";
+  evidenceList.innerHTML = (Array.isArray(evidence.articles) ? evidence.articles : [])
+    .map((article) => {
+      const safeUrl = safeHttpUrl(article.url);
+      if (!safeUrl) return "";
+
+      const description = article.description
+        ? `<p>${escapeHTML(article.description)}</p>`
+        : "";
+      const date = article.published_at
+        ? `<small>${escapeHTML(article.published_at)}</small>`
+        : "";
+      return `
+        <li>
+          <a href="${escapeHTML(safeUrl)}" target="_blank" rel="noopener noreferrer">
+            ${escapeHTML(article.title || "Untitled article")}
+          </a>
+          <span>${escapeHTML(article.publisher || "Unknown publisher")} ${date}</span>
+          ${description}
+        </li>
+      `;
+    }).join("");
+  newsEvidence.classList.remove("hidden");
 }
 
 
@@ -472,6 +399,20 @@ function setResult({ state, icon, title, subtitle, badge, action, checks }) {
 
   renderChecks(checks || []);
 
+}
+
+
+function setConfidence(confidence) {
+  if (!Number.isFinite(confidence) || confidence < 0 || confidence > 1) {
+    confidenceCard.classList.add("hidden");
+    return;
+  }
+
+  const percentage = Math.round(confidence * 100);
+  confidenceValue.textContent = `${percentage}%`;
+  confidenceBar.style.width = `${percentage}%`;
+  confidenceTrack.setAttribute("aria-valuenow", String(percentage));
+  confidenceCard.classList.remove("hidden");
 }
 
 
@@ -535,6 +476,8 @@ async function investigate(value = input.value.trim()) {
       throw new Error(data.error || "The ML backend returned an error.");
     }
 
+    renderNewsEvidence(data.evidence);
+
     if (isUrl) {
       if (!data.article || typeof data.article.title !== "string" || typeof data.article.publisher !== "string" || typeof data.article.preview !== "string" || typeof data.article.url !== "string") {
         throw new Error("The backend did not return article details.");
@@ -560,6 +503,11 @@ async function investigate(value = input.value.trim()) {
       throw new Error("Uncertainty status was not returned correctly by the backend.");
     }
 
+    if (typeof data.confidence !== "number" || !Number.isFinite(data.confidence) || data.confidence < 0 || data.confidence > 1) {
+      throw new Error("Estimated model confidence was not returned correctly by the backend.");
+    }
+    setConfidence(data.confidence);
+
     const words = Number(data.word_count) || analysisInput.split(/\s+/).filter(Boolean).length;
 
     const wordsCheck = {
@@ -567,8 +515,6 @@ async function investigate(value = input.value.trim()) {
       icon: "fa-file-lines",
       text: `${words} words analyzed`
     };
-
-    const resultLabel = data.uncertain ? "UNCERTAIN" : prediction ? "LIKELY REAL" : "LIKELY FAKE";
 
     if (data.uncertain) {
       setResult({
@@ -587,7 +533,6 @@ async function investigate(value = input.value.trim()) {
         ]
       });
 
-      saveHistory(analysisInput, resultLabel);
       return;
     }
 
@@ -631,11 +576,6 @@ async function investigate(value = input.value.trim()) {
       });
 
     }
-
-    saveHistory(
-      analysisInput,
-      resultLabel
-    );
 
   } catch (error) {
 
@@ -804,164 +744,6 @@ settingsActionBackdrop.addEventListener("click", (event) => {
 
 
 /* =========================================================
-   MANAGE ACCOUNT
-========================================================= */
-
-function openAccountSettings() {
-
-  const profile = getProfile();
-
-  openSettingsAction(
-
-    "Manage account",
-
-    "Update your local profile information.",
-
-    `
-      <form class="settings-form" id="accountSettingsForm">
-
-        <label class="field">
-          <span>Full name</span>
-          <div>
-            <i class="fa-regular fa-user"></i>
-            <input id="profileName" type="text" value="${escapeHTML(profile.name || "")}" placeholder="Your name" />
-          </div>
-        </label>
-
-        <label class="field">
-          <span>Email</span>
-          <div>
-            <i class="fa-regular fa-envelope"></i>
-            <input id="profileEmail" type="email" value="${escapeHTML(profile.email || "")}" placeholder="you@example.com" />
-          </div>
-        </label>
-
-        <button class="auth-submit settings-save-btn" type="submit">Save profile</button>
-
-      </form>
-    `
-
-  );
-
-  $("accountSettingsForm").addEventListener("submit", (event) => {
-
-    event.preventDefault();
-
-    const profileData = {
-      name: $("profileName").value.trim(),
-      email: $("profileEmail").value.trim()
-    };
-
-    if (!profileData.name) {
-      showToast("Please enter your name.");
-      return;
-    }
-
-    if (!profileData.email) {
-      showToast("Please enter your email.");
-      return;
-    }
-
-    localStorage.setItem("fncProfile", JSON.stringify(profileData));
-
-    updateAuthUI();
-
-    showToast("Profile saved locally.");
-
-    closeSettingsAction();
-
-  });
-
-}
-
-
-/* =========================================================
-   MANAGE PASSWORD
-========================================================= */
-
-function openPasswordSettings() {
-
-  openSettingsAction(
-
-    "Manage password",
-
-    "Update your password settings.",
-
-    `
-      <form class="settings-form" id="passwordSettingsForm">
-
-        <label class="field">
-          <span>Current password</span>
-          <div>
-            <i class="fa-solid fa-lock"></i>
-            <input type="password" id="currentPassword" placeholder="Current password" required />
-          </div>
-        </label>
-
-        <label class="field">
-          <span>New password</span>
-          <div>
-            <i class="fa-solid fa-lock"></i>
-            <input type="password" id="newPassword" placeholder="New password" required />
-          </div>
-        </label>
-
-        <label class="field">
-          <span>Confirm new password</span>
-          <div>
-            <i class="fa-solid fa-shield-halved"></i>
-            <input type="password" id="confirmNewPassword" placeholder="Repeat new password" required />
-          </div>
-        </label>
-
-        <button class="auth-submit settings-save-btn" type="submit">Update password</button>
-
-        <p class="settings-modal-note">
-          This is currently a frontend demo screen.
-          Secure password authentication will be handled
-          by the authentication backend later.
-        </p>
-
-      </form>
-    `
-
-  );
-
-  $("passwordSettingsForm").addEventListener("submit", (event) => {
-
-    event.preventDefault();
-
-    const currentPassword = $("currentPassword").value;
-    const newPassword = $("newPassword").value;
-    const confirmPassword = $("confirmNewPassword").value;
-
-    if (!currentPassword) {
-      showToast("Enter your current password.");
-      return;
-    }
-
-    if (newPassword.length < 6) {
-      showToast("New password must be at least 6 characters.");
-      return;
-    }
-
-    if (newPassword !== confirmPassword) {
-      showToast("New passwords do not match.");
-      return;
-    }
-
-    localStorage.setItem("fncPasswordUpdated", "true");
-
-    showToast("Password settings updated locally.");
-
-    closeSettingsAction();
-
-  });
-
-}
-
-
-/* =========================================================
    LANGUAGE
 ========================================================= */
 
@@ -986,21 +768,21 @@ const translations = {
 
     investigate: "Investigate",
 
-    quickAuthorship: "Check Authorship",
-    quickArticles: "Check articles",
-    quickSources: "Cross-Reference Sources",
+    quickAuthorship: "Analyze text patterns",
+    quickArticles: "Check article URL",
+    quickSources: "Search sources online",
     aiDisclaimer: "AI can make mistakes. Verify important claims with trusted sources.",
     publisher: "Publisher",
     articlePreview: "Extracted text preview",
     openArticle: "Open original article",
     sourceLinks: "Look up this claim",
-    factChecks: "Search fact checks",
-    independentSources: "Search independent sources",
+    factChecks: "Search fact-check articles",
+    independentSources: "Search web coverage",
 
-    methodsTitle: "Choose your evidence.",
+    methodsTitle: "Start an investigation.",
 
     methodsDescription:
-      "Each route starts a different type of verification workflow. Click a card to use it.",
+      "Analyze text or an article URL with the model, or share this app. The model provides a signal, not verified evidence.",
 
     linkTitle: "Check by Link",
     linkDescription: "Paste an article or website URL and inspect its source signals.",
@@ -1036,21 +818,21 @@ const translations = {
 
     investigate: "जांच करें",
 
-    quickAuthorship: "ऑथरशिप चेक करें",
-    quickArticles: "आर्टिकल जांचें",
-    quickSources: "सोर्स क्रॉस-चेक करें",
+    quickAuthorship: "टेक्स्ट पैटर्न जांचें",
+    quickArticles: "आर्टिकल URL जांचें",
+    quickSources: "ऑनलाइन स्रोत खोजें",
     aiDisclaimer: "AI गलतियाँ कर सकता है। ज़रूरी दावों की विश्वसनीय स्रोतों से पुष्टि करें।",
     publisher: "प्रकाशक",
     articlePreview: "निकाला गया टेक्स्ट",
     openArticle: "मूल आर्टिकल खोलें",
     sourceLinks: "इस दावे की और जानकारी देखें",
-    factChecks: "फैक्ट-चेक खोजें",
-    independentSources: "स्वतंत्र स्रोत खोजें",
+    factChecks: "फैक्ट-चेक लेख खोजें",
+    independentSources: "वेब कवरेज खोजें",
 
-    methodsTitle: "अपने सबूत चुनें।",
+    methodsTitle: "जांच शुरू करें।",
 
     methodsDescription:
-      "हर विकल्प एक अलग verification workflow शुरू करता है। इस्तेमाल करने के लिए कार्ड पर क्लिक करें।",
+      "मॉडल से टेक्स्ट या आर्टिकल URL जांचें, या इस ऐप को शेयर करें। मॉडल का नतीजा संकेत है, verified evidence नहीं।",
 
     linkTitle: "लिंक से चेक करें",
     linkDescription: "आर्टिकल या वेबसाइट URL डालकर उसके source signals देखें।",
@@ -1174,9 +956,7 @@ function openLanguageSettings() {
    HISTORY RENDER
 ========================================================= */
 
-function renderHistory() {
-
-  const history = getHistory();
+function renderHistory(history) {
 
   if (!history.length) {
 
@@ -1198,6 +978,13 @@ function renderHistory() {
     const isReal = item.prediction === "TRUE" || item.prediction === "LIKELY REAL";
     const isFake = item.prediction === "FAKE" || item.prediction === "LIKELY FAKE";
     const className = isReal ? "real" : isFake ? "fake" : "uncertain";
+    const evidenceLinks = (Array.isArray(item.evidence) ? item.evidence : [])
+      .map((article) => {
+        const url = safeHttpUrl(article.url);
+        if (!url) return "";
+        return `<li><a href="${escapeHTML(url)}" target="_blank" rel="noopener noreferrer">${escapeHTML(article.title || "Related article")}</a> — ${escapeHTML(article.publisher || "Unknown publisher")}</li>`;
+      })
+      .join("");
 
     return `
           <div class="history-entry">
@@ -1208,6 +995,7 @@ function renderHistory() {
             </div>
 
             <p>${escapeHTML(item.text)}</p>
+            ${evidenceLinks ? `<ul class="history-evidence">${evidenceLinks}</ul>` : ""}
 
           </div>
         `;
@@ -1220,59 +1008,63 @@ function renderHistory() {
 }
 
 /* =========================================================
-   HISTORY (login required)
+   INVESTIGATION HISTORY
 ========================================================= */
 
-function showHistory() {
+async function showHistory() {
 
   openSettingsAction(
 
     "Investigation history",
 
-    "Your latest ML checks are stored locally in this browser.",
+    "Stored in the local SQLite database on this server; records are shared with other users of this local app.",
 
     `
-      ${renderHistory()}
-
-      <button type="button" class="settings-secondary-btn" id="clearHistoryBtn">
-        <i class="fa-solid fa-trash"></i>
-        Clear history
-      </button>
+      <p>Loading investigation history...</p>
     `
 
   );
 
-  $("clearHistoryBtn").addEventListener("click", () => {
+  try {
+    const response = await fetch("/history");
+    const history = await response.json();
 
-    localStorage.removeItem("fncHistory");
+    if (!response.ok) {
+      throw new Error(history.error || "Could not load investigation history.");
+    }
 
-    showToast("History cleared.");
+    settingsActionContent.innerHTML = `
+      ${renderHistory(history)}
+      <button type="button" class="settings-secondary-btn" id="clearHistoryBtn">
+        <i class="fa-solid fa-trash"></i>
+        Clear history
+      </button>
+    `;
 
-    showHistory();
+    $("clearHistoryBtn").addEventListener("click", async () => {
+      try {
+        const clearResponse = await fetch("/history", { method: "DELETE" });
+        const clearResult = await clearResponse.json();
 
-  });
+        if (!clearResponse.ok) {
+          throw new Error(clearResult.error || "Could not clear investigation history.");
+        }
+
+        showToast("History cleared.");
+        showHistory();
+      } catch (error) {
+        showToast(error.message || "Could not clear investigation history.");
+      }
+    });
+  } catch (error) {
+    settingsActionContent.innerHTML = `<p>${escapeHTML(error.message || "Could not load investigation history.")}</p>`;
+  }
 
 }
 
 
 function openHistorySettings() {
-
-  if (!isLoggedIn()) {
-
-    pendingHistory = true;
-
-    settingsPanel.classList.remove("open");
-
-    showToast("Please log in to access your history.");
-
-    openAuth("login");
-
-    return;
-
-  }
-
   showHistory();
-
 }
 
 
@@ -1286,16 +1078,6 @@ document.querySelectorAll(".setting-action").forEach((button) => {
 
     const action = button.dataset.settingAction;
 
-    if (action === "account") {
-      openAccountSettings();
-      return;
-    }
-
-    if (action === "password") {
-      openPasswordSettings();
-      return;
-    }
-
     if (action === "language") {
       openLanguageSettings();
       return;
@@ -1308,6 +1090,15 @@ document.querySelectorAll(".setting-action").forEach((button) => {
 
   });
 
+});
+
+
+$("logoutBtn").addEventListener("click", () => {
+  localStorage.removeItem("fncDemoLoggedIn");
+  closeSidebar();
+  settingsPanel.classList.remove("open");
+  updateAuthUI();
+  showToast("Logged out.");
 });
 
 
@@ -1371,24 +1162,6 @@ document.querySelectorAll(".side-link[data-section]").forEach((button) => {
 
 
 /* =========================================================
-   LOGOUT
-========================================================= */
-
-$("logoutBtn").addEventListener("click", () => {
-
-  localStorage.removeItem("fncDemoLoggedIn");
-
-  closeSidebar();
-  settingsPanel.classList.remove("open");
-
-  updateAuthUI();
-
-  showToast("Logged out successfully.");
-
-});
-
-
-/* =========================================================
    HOME LINK
 ========================================================= */
 
@@ -1407,12 +1180,35 @@ $("homeLink").addEventListener("click", (event) => {
    QUICK TOOLS
 ========================================================= */
 
-document.querySelectorAll(".quick-tools > span").forEach((tool) => {
-
+document.querySelectorAll(".quick-tool").forEach((tool) => {
   tool.addEventListener("click", () => {
-    showToast("This investigation route will be connected in the next backend stage.");
-  });
+    const action = tool.dataset.tool;
 
+    if (action === "text") {
+      input.placeholder = "Enter a claim or paste news text to analyze...";
+      input.focus();
+      input.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
+
+    if (action === "article") {
+      input.placeholder = "Paste a public article URL to analyze...";
+      input.focus();
+      input.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
+
+    const query = input.value.trim();
+    if (!query) {
+      showToast("Enter a claim first, then search for it online.");
+      input.focus();
+      return;
+    }
+
+    const searchUrl = new URL("https://www.google.com/search");
+    searchUrl.searchParams.set("q", query.slice(0, 200));
+    window.open(searchUrl.href, "_blank", "noopener,noreferrer");
+  });
 });
 
 
@@ -1423,8 +1219,6 @@ document.querySelectorAll(".quick-tools > span").forEach((tool) => {
 document.addEventListener("keydown", (event) => {
 
   if (event.key === "Escape") {
-
-    pendingHistory = false;
 
     closeSidebar();
     closeAuth();

@@ -1,25 +1,41 @@
 import ipaddress
+import json
 import math
+import os
+import sqlite3
 import socket
 from pathlib import Path
 from html.parser import HTMLParser
 from urllib.error import HTTPError, URLError
-from urllib.parse import urlparse
-from urllib.request import HTTPRedirectHandler, Request, build_opener
+from urllib.parse import urlencode, urlparse
+from urllib.request import HTTPRedirectHandler, Request, build_opener, urlopen
 
 import joblib
 from flask import Flask, request, jsonify, send_from_directory
-from flask_cors import CORS
+from werkzeug.exceptions import RequestEntityTooLarge
+
+from database import (
+    clear_investigations,
+    get_investigations,
+    initialize_database,
+    save_investigation,
+)
 
 app = Flask(__name__)
-CORS(app)
+app.config["MAX_CONTENT_LENGTH"] = 128_000
 
 FRONTEND_DIR = Path(__file__).resolve().parent
 
 model = joblib.load(FRONTEND_DIR / "model.pkl")
+confidence_model = joblib.load(FRONTEND_DIR / "confidence_model.pkl")
 vectorizer = joblib.load(FRONTEND_DIR / "vectorizer.pkl")
 MAX_PAGE_BYTES = 1_000_000
+MAX_INPUT_CHARS = 20_000
 UNCERTAIN_MARGIN_THRESHOLD = math.log(1.25)
+NEWSAPI_KEY = os.environ.get("NEWSAPI_KEY", "").strip()
+
+
+initialize_database()
 
 
 class ArticleTextParser(HTMLParser):
@@ -147,6 +163,86 @@ def fetch_article_text(url):
     }
 
 
+def search_related_news(query):
+    if not NEWSAPI_KEY:
+        return {
+            "available": False,
+            "provider": "NewsAPI",
+            "message": "Set the NEWSAPI_KEY environment variable to load related news articles.",
+            "articles": [],
+        }
+
+    params = urlencode({
+        "q": query[:200],
+        "language": "en",
+        "sortBy": "relevancy",
+        "pageSize": 5,
+    })
+    request = Request(
+        f"https://newsapi.org/v2/everything?{params}",
+        headers={"X-Api-Key": NEWSAPI_KEY, "User-Agent": "NewsDetector/1.0"},
+    )
+
+    try:
+        with urlopen(request, timeout=5) as response:
+            payload = json.loads(response.read(500_000).decode("utf-8"))
+    except HTTPError as error:
+        app.logger.warning("NewsAPI returned HTTP %s", error.code)
+        return {
+            "available": False,
+            "provider": "NewsAPI",
+            "message": "NewsAPI could not provide related articles. Check the API key or try again later.",
+            "articles": [],
+        }
+    except (URLError, TimeoutError, socket.timeout, OSError, UnicodeDecodeError, json.JSONDecodeError):
+        app.logger.exception("Could not retrieve related articles from NewsAPI")
+        return {
+            "available": False,
+            "provider": "NewsAPI",
+            "message": "Related articles could not be retrieved right now.",
+            "articles": [],
+        }
+
+    if (
+        not isinstance(payload, dict)
+        or payload.get("status") != "ok"
+        or not isinstance(payload.get("articles"), list)
+    ):
+        app.logger.warning("NewsAPI did not return a successful search status")
+        return {
+            "available": False,
+            "provider": "NewsAPI",
+            "message": "NewsAPI could not provide related articles. Check the API key or try again later.",
+            "articles": [],
+        }
+
+    articles = []
+    for item in payload.get("articles", [])[:5]:
+        if not isinstance(item, dict):
+            continue
+        article_url = item.get("url")
+        if not isinstance(article_url, str):
+            continue
+        parsed_url = urlparse(article_url)
+        if parsed_url.scheme not in {"http", "https"} or not parsed_url.hostname:
+            continue
+        source = item.get("source") or {}
+        articles.append({
+            "title": str(item.get("title") or "Untitled article")[:300],
+            "publisher": str(source.get("name") or "Unknown publisher")[:120],
+            "published_at": str(item.get("publishedAt") or "")[:40],
+            "url": article_url,
+            "description": str(item.get("description") or "")[:500],
+        })
+
+    return {
+        "available": True,
+        "provider": "NewsAPI",
+        "message": "Related news coverage only. These articles are not a fact-check verdict.",
+        "articles": articles,
+    }
+
+
 @app.route("/")
 def home():
     return jsonify({
@@ -184,6 +280,10 @@ def predict():
             return jsonify({
                 "error": "Text or URL cannot be empty."
             }), 400
+        if len(supplied_text) > MAX_INPUT_CHARS:
+            return jsonify({
+                "error": f"Text or URL must be {MAX_INPUT_CHARS} characters or fewer."
+            }), 400
 
         article_details = None
         if data.get("is_url"):
@@ -210,10 +310,13 @@ def predict():
 
         prediction = model.predict(text_vector)[0]
         margin = abs(float(model.decision_function(text_vector)[0]))
+        probabilities = confidence_model.predict_proba(text_vector)[0]
+        prediction_class_index = list(confidence_model.classes_).index(prediction)
 
         result = {
             "prediction": bool(prediction == 1),
             "uncertain": margin < UNCERTAIN_MARGIN_THRESHOLD,
+            "confidence": float(probabilities[prediction_class_index]),
             "word_count": len(news_text.split())
         }
 
@@ -225,12 +328,65 @@ def predict():
                 "preview": article_details["preview"]
             }
 
+        search_query = article_details["title"] if article_details else news_text
+        result["evidence"] = search_related_news(search_query)
+
+        result_label = (
+            "UNCERTAIN" if result["uncertain"]
+            else "LIKELY REAL" if result["prediction"]
+            else "LIKELY FAKE"
+        )
+        result["history_id"] = save_investigation(
+            input_text=supplied_text,
+            prediction=result_label,
+            uncertain=result["uncertain"],
+            word_count=result["word_count"],
+            article=article_details,
+            evidence=result["evidence"]["articles"],
+        )
+
         return jsonify(result)
 
-    except Exception as e:
+    except sqlite3.Error:
+        app.logger.exception("Could not save prediction history")
         return jsonify({
-            "error": str(e)
+            "error": "The prediction completed but could not be saved to history."
         }), 500
+
+
+@app.errorhandler(RequestEntityTooLarge)
+def request_too_large(error):
+    app.logger.warning("Rejected oversized request: %s", error)
+    return jsonify({
+        "error": f"Request is too large. Keep input at or below {MAX_INPUT_CHARS} characters."
+    }), 413
+
+
+@app.errorhandler(500)
+def internal_server_error(error):
+    app.logger.error("Unhandled Flask internal error: %s", error)
+    return jsonify({
+        "error": "The server could not complete the request. Check the Flask terminal for details."
+    }), 500
+
+
+@app.route("/history", methods=["GET"])
+def get_history():
+    try:
+        return jsonify(get_investigations())
+    except sqlite3.Error:
+        app.logger.exception("Could not read investigation history")
+        return jsonify({"error": "Could not load investigation history."}), 500
+
+
+@app.route("/history", methods=["DELETE"])
+def clear_history():
+    try:
+        clear_investigations()
+        return jsonify({"message": "Investigation history cleared."})
+    except sqlite3.Error:
+        app.logger.exception("Could not clear investigation history")
+        return jsonify({"error": "Could not clear investigation history."}), 500
 
 
 if __name__ == "__main__":

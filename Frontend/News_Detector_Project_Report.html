@@ -1,0 +1,599 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fake News Detector — Project Report</title>
+  <style>
+    :root {
+      --ink: #17243b;
+      --muted: #52627a;
+      --teal: #087f8c;
+      --blue: #315ee8;
+      --green: #238567;
+      --red: #c64f54;
+      --line: #d7e1eb;
+      --pale: #f3f7fa;
+      --pale-blue: #eef3ff;
+    }
+    @page {
+      size: A4;
+      margin: 18mm 17mm 19mm;
+      @bottom-center {
+        content: "FAKE NEWS DETECTOR  •  PROJECT REPORT  •  " counter(page);
+        color: #64748b;
+        font: 8pt Arial, sans-serif;
+      }
+    }
+    * { box-sizing: border-box; }
+    html { color: var(--ink); background: white; }
+    body {
+      margin: 0;
+      font: 10pt/1.53 Arial, Helvetica, sans-serif;
+      color: var(--ink);
+    }
+    .page {
+      position: relative;
+      break-after: page;
+      page-break-after: always;
+    }
+    .page:last-child { break-after: auto; page-break-after: auto; }
+    h1, h2, h3, h4 { line-height: 1.2; color: var(--ink); }
+    h1 { margin: 0 0 12px; font-size: 26pt; letter-spacing: -.5pt; }
+    h2 { margin: 0 0 11px; font-size: 19pt; }
+    h3 { margin: 18px 0 7px; font-size: 12pt; }
+    h4 { margin: 12px 0 5px; font-size: 10pt; }
+    p { margin: 0 0 9px; }
+    ul, ol { margin: 5px 0 10px; padding-left: 21px; }
+    li { margin: 0 0 4px; }
+    a { color: var(--blue); overflow-wrap: anywhere; }
+    .eyebrow {
+      color: var(--teal); font-size: 8pt; font-weight: 800;
+      letter-spacing: 1.5px; text-transform: uppercase;
+    }
+    .chapter-kicker { margin-bottom: 5px; color: var(--teal); font-size: 8pt; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; }
+    .chapter-title { margin-bottom: 15px; padding-bottom: 9px; border-bottom: 2px solid var(--teal); }
+    .lead { color: var(--muted); font-size: 11pt; }
+    .small { color: var(--muted); font-size: 8.5pt; }
+    .muted { color: var(--muted); }
+    .center { text-align: center; }
+    .right { text-align: right; }
+    .pill {
+      display: inline-block; padding: 4px 9px; border: 1px solid var(--line);
+      border-radius: 999px; background: var(--pale); color: var(--muted);
+      font-size: 8pt; font-weight: 700;
+    }
+    .callout {
+      margin: 11px 0; padding: 10px 12px; border-left: 3px solid var(--teal);
+      background: var(--pale); color: var(--ink);
+    }
+    .warning { border-left-color: #d78a22; background: #fff8eb; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; }
+    .card { padding: 11px 12px; border: 1px solid var(--line); border-radius: 10px; background: white; }
+    .card h3 { margin-top: 0; }
+    .stat {
+      padding: 12px; border: 1px solid var(--line); border-radius: 10px;
+      background: linear-gradient(140deg, #f8fbff, #eef5f8);
+    }
+    .stat strong { display: block; color: var(--teal); font-size: 22pt; line-height: 1.1; }
+    .stat span { color: var(--muted); font-size: 8.5pt; }
+    table { width: 100%; margin: 8px 0 12px; border-collapse: collapse; font-size: 9pt; }
+    th, td { padding: 7px 8px; border: 1px solid var(--line); text-align: left; vertical-align: top; }
+    th { background: #edf3f7; color: var(--ink); font-weight: 700; }
+    tr { break-inside: avoid; }
+    figure { margin: 9px 0 12px; break-inside: avoid; }
+    figure img { display: block; max-width: 100%; max-height: 174mm; margin: 0 auto; object-fit: contain; border: 1px solid var(--line); border-radius: 8px; }
+    figure.compact img { max-height: 126mm; }
+    figcaption { margin-top: 5px; color: var(--muted); text-align: center; font-size: 8pt; }
+    .screenshot-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; align-items: start; }
+    .screenshot-pair figure img { max-height: 115mm; }
+    .mono { font-family: "Cascadia Code", Consolas, monospace; font-size: 8.5pt; }
+    .cover {
+      min-height: 257mm; display: flex; flex-direction: column; justify-content: space-between;
+      padding: 13mm 6mm 8mm; text-align: center;
+    }
+    .cover .rule { width: 45mm; height: 3px; margin: 10px auto 18px; background: linear-gradient(90deg, var(--teal), var(--blue)); }
+    .cover-title { max-width: 155mm; margin: 0 auto 13px; font-size: 27pt; font-weight: 800; letter-spacing: .3pt; }
+    .cover-subtitle { margin: 0 auto; max-width: 130mm; color: var(--muted); font-size: 12pt; }
+    .cover-mark {
+      width: 40mm; height: 40mm; margin: 17mm auto;
+      display: grid; place-items: center; border: 2px solid var(--teal);
+      border-radius: 50%; color: var(--teal); font-size: 24pt; font-weight: 800;
+      background: radial-gradient(circle, #f3fbfc, white);
+    }
+    .cover-details { margin: 0 auto; padding: 10px 20px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); line-height: 2; }
+    .institution { margin-top: 14mm; font-size: 10pt; font-weight: 700; line-height: 1.7; letter-spacing: .3pt; }
+    .signature-row { display: grid; grid-template-columns: 1fr 1fr; gap: 25mm; margin-top: 24mm; }
+    .signature { padding-top: 7px; border-top: 1px solid var(--muted); color: var(--muted); text-align: center; font-size: 8pt; }
+    .toc-list { columns: 2; column-gap: 13mm; margin-top: 15px; }
+    .toc-list li { break-inside: avoid; margin-bottom: 8px; }
+    .toc-list b { display: block; color: var(--ink); }
+    .toc-list span { color: var(--muted); font-size: 8.5pt; }
+    .workflow { width: 100%; margin: 15px 0 10px; }
+    .workflow text { font-family: Arial, sans-serif; fill: var(--ink); font-size: 12px; }
+    .workflow .node { fill: #f2f7fa; stroke: #b7cbd7; stroke-width: 1.5; }
+    .workflow .accent { fill: #edf4ff; stroke: #9ab0f6; }
+    .workflow .store { fill: #eff8f5; stroke: #88c7b1; }
+    .workflow .arrow { stroke: #087f8c; stroke-width: 2; marker-end: url(#arrow); }
+    .matrix td { text-align: center; font-weight: 700; }
+    .matrix tr:first-child td { background: #edf3f7; }
+    .fine-print { margin-top: 8px; color: var(--muted); font-size: 8pt; }
+    @media screen {
+      body { max-width: 210mm; margin: 18px auto; padding: 18px; box-shadow: 0 2px 24px #ccd5de; }
+      .page { min-height: 250mm; padding-bottom: 16mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <section class="page cover">
+    <div>
+      <div class="eyebrow">Academic Project Report</div>
+      <div class="rule"></div>
+      <h1 class="cover-title">FAKE NEWS DETECTOR</h1>
+      <p class="cover-subtitle">A web-based machine-learning application for analyzing news text and investigating claims</p>
+      <div class="cover-mark">FN</div>
+      <p>Submitted in partial fulfilment of the requirements for</p>
+      <p><b>Bachelor of Computer Applications</b></p>
+      <p>in</p>
+      <p><b>Mini Project</b></p>
+    </div>
+    <div>
+      <div class="cover-details">
+        <b>Submitted by</b><br>
+        Hera Fatima &nbsp; | &nbsp; 26413037<br>
+        Aysha Khan &nbsp; | &nbsp; 26413038<br>
+        <b>Project guide</b><br>
+        Mohammad Irshad
+      </div>
+      <div class="institution">
+        Department of Computer Applications<br>
+        Ewing Christian College<br>
+        Allahabad, India
+      </div>
+      <p class="small">Academic session: 2026–27</p>
+    </div>
+  </section>
+
+  <section class="page">
+    <div class="chapter-kicker">Preliminary pages</div>
+    <h2 class="chapter-title">Certificate and Declaration</h2>
+    <h3>Project certificate — for institutional approval</h3>
+    <p>This is to certify that the project report entitled <b>“Fake News Detector”</b> is a description of work carried out by <b>Hera Fatima (Roll No. 26413037)</b> and <b>Aysha Khan (Roll No. 26413038)</b> under the guidance of <b>Mohammad Irshad</b>, in partial fulfilment of the requirements for the <b>Bachelor of Computer Applications</b> Mini Project at the <b>Department of Computer Applications, Ewing Christian College</b>, during the academic session <b>2026–27</b>.</p>
+    <p class="small">The student and project details are personalized. This certificate becomes official only after review, approval, and signatures by the authorized college representatives.</p>
+    <div class="signature-row">
+      <div class="signature">Mohammad Irshad<br>Project Guide signature</div>
+      <div class="signature">Head of Department<br>Authorized signature</div>
+    </div>
+    <h3>Student declaration</h3>
+    <p>We, <b>Hera Fatima</b> and <b>Aysha Khan</b>, declare that this report presents our Mini Project work and that sources, datasets, tools, and limitations are identified to the best of our knowledge. The model outputs documented here are system outputs and should not be represented as independent fact-check verdicts.</p>
+    <div class="signature-row">
+      <div class="signature">Hera Fatima<br>Roll No. 26413037<br>Student signature</div>
+      <div class="signature">Aysha Khan<br>Roll No. 26413038<br>Student signature</div>
+    </div>
+    <div class="callout warning"><b>Before official submission:</b> obtain the required student, guide, and college-authority signatures and follow the college's approval process. No approval or signature is implied by this report.</div>
+  </section>
+
+  <section class="page">
+    <div class="chapter-kicker">Preliminary pages</div>
+    <h2 class="chapter-title">Acknowledgement and Abstract</h2>
+    <h3>Acknowledgement</h3>
+    <p>We would like to thank our project guide, <b>Mohammad Irshad</b>, for guidance and feedback during this project, and the <b>Department of Computer Applications, Ewing Christian College</b>, for the opportunity and resources to develop it. We also acknowledge the maintainers of the open-source software and machine-learning tools used in the implementation.</p>
+    <h3>Abstract</h3>
+    <p>Fake News Detector is a local web application that analyzes user-submitted news text or a public article URL. A JavaScript frontend sends the request to a Flask API. The backend extracts readable article text where possible, transforms text using a TF–IDF vectorizer, and applies a trained linear support-vector classifier. It returns a likely-real, likely-fake, or uncertain model signal, plus a calibrated estimate of confidence in the predicted class. It can optionally request related coverage from NewsAPI and persists investigations in a local SQLite database.</p>
+    <p>The training pipeline uses a balanced 10,000-row sample from the project’s IFND data files, removes normalized duplicate statements, evaluates a stratified holdout, performs a separate publisher-held-out diagnostic, and fits a calibrated model for confidence estimates. The random 80/20 holdout achieved 94.8% accuracy. The publisher-held-out test achieved 95.8% accuracy but contained only 55 fake examples versus 1,585 true examples; fake-class precision was 44.3%, showing why overall accuracy alone can be misleading.</p>
+    <p>The application is a screening aid, not a fact-checking authority. Its confidence percentage is not an accuracy guarantee. Real account authentication is not implemented, history is shared by users of the local server, and live NewsAPI coverage requires a private API key.</p>
+    <p><b>Keywords:</b> misinformation, text classification, TF–IDF, LinearSVC, Flask, SQLite, confidence calibration.</p>
+  </section>
+
+  <section class="page">
+    <div class="chapter-kicker">Report guide</div>
+    <h2 class="chapter-title">Contents and List of Figures</h2>
+    <ol class="toc-list">
+      <li><b>Chapter 1 — Introduction</b><span>Context, problem, objectives, scope, limitations</span></li>
+      <li><b>Chapter 2 — Background and Requirements</b><span>Existing approach, proposed system, requirements</span></li>
+      <li><b>Chapter 3 — System Design</b><span>Architecture, processing flow, modules, data design</span></li>
+      <li><b>Chapter 4 — Implementation</b><span>Frontend, Flask API, machine-learning pipeline, database</span></li>
+      <li><b>Chapter 5 — Evaluation and Demonstration</b><span>Dataset, metrics, screenshots, interpretation</span></li>
+      <li><b>Chapter 6 — Testing and Discussion</b><span>Regression tests, constraints, security and privacy</span></li>
+      <li><b>Chapter 7 — Conclusion and Future Work</b><span>Summary, recommendations, references</span></li>
+      <li><b>Appendix A — Running the Project</b><span>Setup and operation</span></li>
+    </ol>
+    <h3>List of figures</h3>
+    <ol>
+      <li>System architecture and data flow</li>
+      <li>Live dashboard screenshot</li>
+      <li>LIKELY REAL result with confidence estimate</li>
+      <li>LIKELY FAKE result with confidence estimate</li>
+      <li>UNCERTAIN result with confidence estimate</li>
+      <li>SQLite-backed investigation history</li>
+    </ol>
+    <h3>List of tables</h3>
+    <ol>
+      <li>Project requirements</li><li>Dataset and evaluation summary</li>
+      <li>Random holdout classification metrics</li><li>Publisher-held-out diagnostic</li>
+      <li>API routes and regression tests</li>
+    </ol>
+    <p class="fine-print">This report adapts the reference’s academic chapter structure to the project’s actual scope. It is not a reproduction of the reference report.</p>
+  </section>
+
+  <section class="page">
+    <div class="chapter-kicker">Chapter 1</div>
+    <h2 class="chapter-title">Introduction</h2>
+    <p class="lead">Online claims spread quickly, while readers often need to assess a story before they have time to compare sources. A machine-learning classifier can provide a quick text-pattern signal, but it cannot independently establish whether a factual statement is true.</p>
+    <h3>1.1 Problem statement</h3>
+    <p>The project addresses the need for an accessible way to submit a claim or article and receive a fast preliminary classification. A useful implementation also needs to handle ordinary network and input errors clearly, retain a local investigation history, and communicate the limitations of automated classification.</p>
+    <h3>1.2 Objectives</h3>
+    <ul>
+      <li>Provide a browser-based interface for claim text and public article URLs.</li>
+      <li>Connect the frontend and Python classifier through a same-origin Flask service.</li>
+      <li>Return one of three user-facing states: likely real, likely fake, or uncertain.</li>
+      <li>Present an estimated calibrated model confidence without confusing it with accuracy.</li>
+      <li>Store investigation records in a separate SQLite database module.</li>
+      <li>Optionally show related news coverage, clearly distinguished from fact-check evidence.</li>
+      <li>Evaluate the classifier on held-out data and document limitations.</li>
+    </ul>
+    <h3>1.3 Scope</h3>
+    <p>The system analyzes text patterns in English claims or the readable text extracted from a public HTML article page. It returns a model label, word count, confidence estimate, history identifier, and optional related coverage. It provides links for the user to search for sources but does not independently verify them.</p>
+    <h3>1.4 Out of scope</h3>
+    <ul>
+      <li>Guaranteed truth determination, human fact-checking, or verified source citations.</li>
+      <li>Production user accounts, secure passwords, roles, or per-user history privacy.</li>
+      <li>Authenticated, paywalled, blocked, or non-HTML article extraction.</li>
+      <li>Live related-article search unless the operator configures a valid NewsAPI key.</li>
+    </ul>
+  </section>
+
+  <section class="page">
+    <div class="chapter-kicker">Chapter 2</div>
+    <h2 class="chapter-title">Background and Requirements</h2>
+    <h3>2.1 Existing problem context</h3>
+    <p>Manual source comparison is valuable but takes time. Keyword rules can be brittle, and a classifier trained on previously labeled examples can learn publisher or writing-style correlations rather than verify a claim’s facts. Therefore, this project presents automated output as an initial signal and keeps source checking with the user.</p>
+    <h3>2.2 Proposed system</h3>
+    <p>The proposed application combines a responsive web interface, Flask API, TF–IDF text representation, linear SVM classifier, sigmoid-calibrated confidence model, optional NewsAPI integration, and SQLite investigation history. It can analyze raw text or extract readable content from a public page.</p>
+    <h3>2.3 Functional requirements</h3>
+    <table>
+      <thead><tr><th>ID</th><th>Requirement</th><th>Implementation</th></tr></thead>
+      <tbody>
+        <tr><td>FR-01</td><td>Accept non-empty news text or public article URL.</td><td>Browser form and <span class="mono">POST /predict</span>.</td></tr>
+        <tr><td>FR-02</td><td>Return model label, uncertainty state, and confidence.</td><td>LinearSVC plus calibrated confidence artifact.</td></tr>
+        <tr><td>FR-03</td><td>Show readable article metadata when URL extraction succeeds.</td><td>HTML parser and article-details panel.</td></tr>
+        <tr><td>FR-04</td><td>Persist and display investigation history.</td><td>SQLite helpers in <span class="mono">database.py</span>.</td></tr>
+        <tr><td>FR-05</td><td>Optionally retrieve related reporting.</td><td>NewsAPI, only when <span class="mono">NEWSAPI_KEY</span> is configured.</td></tr>
+        <tr><td>FR-06</td><td>Handle invalid input and provider failures explicitly.</td><td>JSON errors and frontend notifications.</td></tr>
+      </tbody>
+    </table>
+    <h3>2.4 Non-functional requirements</h3>
+    <div class="grid-2">
+      <div class="card"><h4>Usability</h4><p>Responsive layout, clear labels, light/dark theme, English/Hindi UI text, and understandable result states.</p></div>
+      <div class="card"><h4>Reliability</h4><p>Bounded inputs, request-size handling, explicit errors, and focused regression tests.</p></div>
+      <div class="card"><h4>Maintainability</h4><p>Database operations separated from Flask routes; model training and dataset creation scripts kept distinct.</p></div>
+      <div class="card"><h4>Security boundary</h4><p>Public URL validation prevents local/private address fetches. The app has no user authentication or private per-user history.</p></div>
+    </div>
+  </section>
+
+  <section class="page">
+    <div class="chapter-kicker">Chapter 3</div>
+    <h2 class="chapter-title">System Design and Architecture</h2>
+    <p>The browser and Flask service are served from the same origin. This avoids separate development-server CORS configuration and keeps the model and database operations on the Python backend.</p>
+    <svg class="workflow" viewBox="0 0 760 330" role="img" aria-label="Frontend to Flask API to machine learning and database system architecture">
+      <defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#087f8c"/></marker></defs>
+      <rect class="node accent" x="20" y="34" width="190" height="82" rx="14"/>
+      <text x="115" y="66" text-anchor="middle" font-weight="700">Browser interface</text>
+      <text x="115" y="91" text-anchor="middle">HTML • CSS • JavaScript</text>
+      <rect class="node" x="282" y="34" width="195" height="82" rx="14"/>
+      <text x="379" y="66" text-anchor="middle" font-weight="700">Flask API</text>
+      <text x="379" y="91" text-anchor="middle">Validation • routes • orchestration</text>
+      <rect class="node accent" x="548" y="18" width="190" height="88" rx="14"/>
+      <text x="643" y="51" text-anchor="middle" font-weight="700">Text classifier</text>
+      <text x="643" y="74" text-anchor="middle">TF–IDF + LinearSVC</text>
+      <text x="643" y="93" text-anchor="middle">Calibrated confidence</text>
+      <rect class="node store" x="548" y="156" width="190" height="70" rx="14"/>
+      <text x="643" y="185" text-anchor="middle" font-weight="700">SQLite database</text>
+      <text x="643" y="207" text-anchor="middle">Shared local history</text>
+      <rect class="node" x="282" y="156" width="195" height="70" rx="14"/>
+      <text x="379" y="185" text-anchor="middle" font-weight="700">Optional NewsAPI</text>
+      <text x="379" y="207" text-anchor="middle">Related reporting only</text>
+      <rect class="node" x="20" y="156" width="190" height="70" rx="14"/>
+      <text x="115" y="185" text-anchor="middle" font-weight="700">Result and history UI</text>
+      <text x="115" y="207" text-anchor="middle">Label • confidence • sources</text>
+      <line class="arrow" x1="210" y1="75" x2="274" y2="75"/>
+      <line class="arrow" x1="477" y1="69" x2="540" y2="64"/>
+      <line class="arrow" x1="477" y1="91" x2="540" y2="179"/>
+      <line class="arrow" x1="379" y1="116" x2="379" y2="149"/>
+      <line class="arrow" x1="282" y1="191" x2="218" y2="191"/>
+      <text x="380" y="280" text-anchor="middle" fill="#52627a">The API returns JSON; the browser renders results and fetches stored history.</text>
+    </svg>
+    <h3>3.1 Request flow</h3>
+    <ol>
+      <li>User enters a statement or article URL and submits it.</li>
+      <li>JavaScript sends JSON to <span class="mono">POST /predict</span>.</li>
+      <li>Flask validates type, non-empty input, size limits, and—when a URL is supplied—public address and response type.</li>
+      <li>For article URLs, readable HTML text, title, and publisher are extracted; otherwise the supplied text is used.</li>
+      <li>TF–IDF transforms the text; the classifier chooses a class, the margin determines whether the result is uncertain, and the calibrated model estimates confidence.</li>
+      <li>Flask optionally queries NewsAPI, saves the result in SQLite, and returns JSON for the interface.</li>
+    </ol>
+    <div class="callout"><b>Figure 1.</b> System architecture, based on the implemented Flask routes, frontend calls, trained artifacts, SQLite helpers, and optional NewsAPI integration.</div>
+  </section>
+
+  <section class="page">
+    <div class="chapter-kicker">Chapter 3</div>
+    <h2 class="chapter-title">Classifier and Decision Design</h2>
+    <h3>3.2 Text representation</h3>
+    <p>The training script uses a scikit-learn TF–IDF vectorizer with lowercase normalization, unigram and bigram features, minimum document frequency of two, and sublinear term frequency. The text is converted into a sparse feature vector that records how informative terms and adjacent term pairs are within the training corpus.</p>
+    <h3>3.3 Classification</h3>
+    <p>A <span class="mono">LinearSVC</span> model predicts class 1 (TRUE) or class 0 (FAKE). This is a supervised text-pattern classifier. Its class is not a verification of the claim’s underlying facts.</p>
+    <h3>3.4 Three user-facing states</h3>
+    <p>The API measures the absolute signed decision margin. If the margin is below <span class="mono">ln(1.25) ≈ 0.223</span>, the result is shown as UNCERTAIN. Otherwise, the predicted class is displayed as LIKELY REAL or LIKELY FAKE. The threshold is an application decision rule on the SVM margin, not a probability cutoff.</p>
+    <h3>3.5 Calibrated confidence</h3>
+    <p>A separate sigmoid-calibrated <span class="mono">LinearSVC</span>, fitted with five-fold calibration during training, supplies a probability-like estimate for the predicted class. The UI labels this “Model confidence” and explicitly says it is not prediction accuracy. Calibration is learned from the available dataset; distribution shifts, publisher leakage, and out-of-domain inputs can still make an individual percentage misleading.</p>
+    <div class="callout warning"><b>Interpretation rule:</b> a displayed confidence such as 97% means the calibrated model assigns high confidence to its chosen class under learned data patterns. It does not mean that the claim is 97% factually correct.</div>
+    <h3>3.6 SQLite data design</h3>
+    <p>The separate <span class="mono">database.py</span> module creates and migrates an <span class="mono">investigations</span> table. Each record stores submitted text, predicted label, uncertain flag, word count, optional article metadata, related article JSON, and timestamp. The browser can read the latest records with <span class="mono">GET /history</span> and clear them with <span class="mono">DELETE /history</span>.</p>
+    <p>History is local to this server and shared; it is not partitioned by account. Browser-only sign-in/profile controls do not authenticate users or provide privacy.</p>
+  </section>
+
+  <section class="page">
+    <div class="chapter-kicker">Chapter 4</div>
+    <h2 class="chapter-title">Implementation</h2>
+    <h3>4.1 Main technologies</h3>
+    <table>
+      <thead><tr><th>Layer</th><th>Technology</th><th>Role</th></tr></thead>
+      <tbody>
+        <tr><td>Frontend</td><td>HTML, CSS, JavaScript</td><td>Dashboard, input, result cards, settings, history interactions.</td></tr>
+        <tr><td>Web/API</td><td>Flask</td><td>Same-origin page/static routes, prediction endpoint, history endpoints.</td></tr>
+        <tr><td>ML</td><td>scikit-learn, joblib, pandas</td><td>TF–IDF, LinearSVC, confidence calibration, training and artifact loading.</td></tr>
+        <tr><td>Storage</td><td>SQLite</td><td>Durable local investigation history and schema migration.</td></tr>
+        <tr><td>Optional service</td><td>NewsAPI</td><td>Up to five related articles when an environment key is configured.</td></tr>
+      </tbody>
+    </table>
+    <h3>4.2 Flask API routes</h3>
+    <table>
+      <thead><tr><th>Route</th><th>Purpose</th><th>Response / behavior</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">GET /</td><td>API status</td><td>JSON message confirming the service is running.</td></tr>
+        <tr><td class="mono">GET /app/</td><td>Serve application</td><td>Returns the dashboard page from the same origin.</td></tr>
+        <tr><td class="mono">POST /predict</td><td>Analyze text/URL</td><td>Class, uncertain flag, confidence, word count, evidence status, history ID.</td></tr>
+        <tr><td class="mono">GET /history</td><td>Read investigations</td><td>Latest stored entries, newest first.</td></tr>
+        <tr><td class="mono">DELETE /history</td><td>Clear history</td><td>Deletes server-local history.</td></tr>
+      </tbody>
+    </table>
+    <h3>4.3 Article extraction and external coverage</h3>
+    <p>The URL path accepts only standard public HTTP/HTTPS destinations, rejects credentials and nonstandard ports, validates DNS/IP addresses, and validates redirects. It reads a bounded amount of HTML and extracts text while excluding common non-content elements. Some publishers block automated access or provide too little readable text; such failures are reported rather than silently interpreted.</p>
+    <p>NewsAPI results are labeled related coverage, not fact-check verdicts. If no <span class="mono">NEWSAPI_KEY</span> is configured, the application reports that related coverage is unavailable; the classifier still runs.</p>
+  </section>
+
+  <section class="page">
+    <div class="chapter-kicker">Chapter 5</div>
+    <h2 class="chapter-title">Dataset and Evaluation Method</h2>
+    <h3>5.1 Data preparation</h3>
+    <p>The project contains the IFND source file <span class="mono">IFND.csv</span> and a balanced training sample <span class="mono">IFND_10000.csv</span>. The dataset-generation script normalizes Unicode, whitespace, and case; removes invalid/empty entries; excludes normalized statements with conflicting labels; removes same-label duplicates; and samples 5,000 TRUE and 5,000 FAKE entries using a fixed random seed.</p>
+    <p>The training script repeated normalization and duplicate checks on the sample. In the run documented here it loaded 10,000 rows, removed two same-label duplicate rows, and retained 9,998 clean entries: 4,998 FAKE and 5,000 TRUE.</p>
+    <div class="grid-3">
+      <div class="stat"><strong>9,998</strong><span>clean rows used for final fit</span></div>
+      <div class="stat"><strong>4,998</strong><span>FAKE labels</span></div>
+      <div class="stat"><strong>5,000</strong><span>TRUE labels</span></div>
+    </div>
+    <h3>5.2 Validation protocol</h3>
+    <p>A deterministic stratified random 80/20 split was used for the main evaluation. This produced 7,998 training rows and 2,000 test rows (1,000 per class). Preprocessing was fitted only on each training split before transforming its corresponding test data.</p>
+    <p>A separate publisher-held-out diagnostic used a grouped split by the dataset’s publisher field. Its test set contained 1,640 rows, but only 55 were fake and 1,585 were true. That split helps reveal publisher generalization issues but is not a balanced measure of deployed performance.</p>
+    <h3>5.3 Metrics</h3>
+    <ul>
+      <li><b>Accuracy:</b> fraction of all examples predicted correctly.</li>
+      <li><b>Precision:</b> among predictions of a class, fraction that are correct.</li>
+      <li><b>Recall:</b> among actual examples of a class, fraction found by the model.</li>
+      <li><b>F1:</b> harmonic mean of precision and recall.</li>
+      <li><b>Brier score:</b> mean squared error of probabilistic confidence estimates; lower is better (0 is perfect).</li>
+    </ul>
+  </section>
+
+  <section class="page">
+    <div class="chapter-kicker">Chapter 5</div>
+    <h2 class="chapter-title">Evaluation Results and Discussion</h2>
+    <div class="grid-3">
+      <div class="stat"><strong>94.8%</strong><span>stratified random holdout accuracy</span></div>
+      <div class="stat"><strong>0.947</strong><span>random holdout macro F1 (rounded)</span></div>
+      <div class="stat"><strong>0.036</strong><span>calibrated holdout Brier score</span></div>
+    </div>
+    <h3>5.4 Main holdout results</h3>
+    <table>
+      <thead><tr><th>Class</th><th>Precision</th><th>Recall</th><th>F1-score</th><th>Support</th></tr></thead>
+      <tbody>
+        <tr><td>FAKE</td><td>0.976</td><td>0.918</td><td>0.946</td><td>1,000</td></tr>
+        <tr><td>TRUE</td><td>0.923</td><td>0.977</td><td>0.949</td><td>1,000</td></tr>
+        <tr><td>Macro average</td><td>0.949</td><td>0.948</td><td>0.947</td><td>2,000</td></tr>
+      </tbody>
+    </table>
+    <table class="matrix">
+      <thead><tr><th colspan="3">Confusion matrix — actual rows, predicted columns</th></tr></thead>
+      <tbody>
+        <tr><td></td><td>Predicted FAKE</td><td>Predicted TRUE</td></tr>
+        <tr><td>Actual FAKE</td><td>918</td><td>82</td></tr>
+        <tr><td>Actual TRUE</td><td>23</td><td>977</td></tr>
+      </tbody>
+    </table>
+    <h3>5.5 Publisher-held-out diagnostic</h3>
+    <table>
+      <thead><tr><th>Test population</th><th>Accuracy</th><th>FAKE precision</th><th>FAKE recall</th><th>Interpretation</th></tr></thead>
+      <tbody>
+        <tr><td>55 FAKE; 1,585 TRUE</td><td>95.8%</td><td>44.3%</td><td>98.2%</td><td>Highly imbalanced; overall accuracy obscures poor fake precision.</td></tr>
+      </tbody>
+    </table>
+    <div class="callout warning"><b>Important limitation:</b> the publisher-held-out accuracy must not be presented as evidence that the detector is 95.8% reliable on new sources. The fake class had only 55 examples and 44.3% precision in that split. Publisher/label associations in the source data may also influence text-pattern learning.</div>
+    <p>These are dataset-split metrics, not guarantees about individual live inputs. The confidence model was evaluated on the random holdout with Brier score 0.036; confidence should still be treated cautiously under distribution shift.</p>
+  </section>
+
+  <section class="page">
+    <div class="chapter-kicker">Chapter 5 · Live demonstration</div>
+    <h2 class="chapter-title">Dashboard and Likely-Real Result</h2>
+    <figure class="compact">
+      <img src="report_assets/dashboard.png" alt="Live Fake News Detector dashboard served by Flask">
+      <figcaption>Figure 2. Live dashboard served by the Flask application at <span class="mono">/app/</span>. Screenshot captured from the running local server.</figcaption>
+    </figure>
+    <h3>Demonstration input</h3>
+    <p class="mono">“Water freezes at zero degrees Celsius under standard atmospheric pressure.”</p>
+    <figure class="compact">
+      <img src="report_assets/result_likely_real.png" alt="LIKELY REAL result with 97 percent calibrated model confidence">
+      <figcaption>Figure 3. The classifier returns LIKELY REAL with an estimated model confidence of 97%. This is not a fact-check verdict.</figcaption>
+    </figure>
+    <p>The output panel shows the predicted class, a confidence indicator, related-news provider status, text-pattern checks, and links for independent user research. In this capture the optional NewsAPI key was not configured, so the related-news section correctly says articles are unavailable.</p>
+  </section>
+
+  <section class="page">
+    <div class="chapter-kicker">Chapter 5 · Live demonstration</div>
+    <h2 class="chapter-title">Likely-Fake Result and Saved History</h2>
+    <h3>Demonstration input</h3>
+    <p class="mono">“The Moon is made entirely of cheese.”</p>
+    <figure class="compact">
+      <img src="report_assets/result_likely_fake.png" alt="LIKELY FAKE result with 96 percent calibrated model confidence">
+      <figcaption>Figure 4. The classifier returns LIKELY FAKE with estimated model confidence of 96%. The class is based on learned patterns, not a source verification.</figcaption>
+    </figure>
+  </section>
+
+  <section class="page">
+    <div class="chapter-kicker">Chapter 5 · Live demonstration</div>
+    <h2 class="chapter-title">Investigation History and Local Storage</h2>
+    <figure class="compact">
+      <img src="report_assets/history.png" alt="Investigation history page with three demonstration results">
+      <figcaption>Figure 5. History retrieved from the SQLite-backed Flask endpoint. The visible sample rows correspond to demonstration claims entered during report preparation.</figcaption>
+    </figure>
+    <p>The history page displays saved labels and input text. The database is local to the server and shared; no per-user privacy boundary is implemented.</p>
+  </section>
+
+  <section class="page">
+    <div class="chapter-kicker">Chapter 5 · Live demonstration</div>
+    <h2 class="chapter-title">Uncertain Result and Confidence Meaning</h2>
+    <h3>Demonstration input</h3>
+    <p class="mono">“The capital of France is Paris.”</p>
+    <figure class="compact">
+      <img src="report_assets/result_uncertain.png" alt="UNCERTAIN result with 53 percent calibrated model confidence">
+      <figcaption>Figure 6. The model returns UNCERTAIN at 53% confidence for a factually correct statement. This demonstrates that learned text patterns can fail to recognize simple facts.</figcaption>
+    </figure>
+    <h3>Why confidence and accuracy differ</h3>
+    <table>
+      <thead><tr><th>Value</th><th>What it describes</th><th>What it does not prove</th></tr></thead>
+      <tbody>
+        <tr><td>Per-input confidence (e.g. 53%)</td><td>Calibrated score assigned to the predicted class for one input.</td><td>It does not prove that the class is factually correct.</td></tr>
+        <tr><td>Holdout accuracy (94.8%)</td><td>Share of examples correctly classified in one labeled 2,000-row test split.</td><td>It does not guarantee this accuracy on live claims or new publishers.</td></tr>
+        <tr><td>UNCERTAIN</td><td>SVM margin fell below the application's threshold.</td><td>It does not mean the underlying statement is inherently unknowable.</td></tr>
+      </tbody>
+    </table>
+    <div class="callout warning"><b>Demonstration claims are synthetic/simple examples.</b> Their labels show the behavior of the current model and are not being offered as published news or independent fact-checks.</div>
+  </section>
+
+  <section class="page">
+    <div class="chapter-kicker">Chapter 6</div>
+    <h2 class="chapter-title">Testing and Quality Assurance</h2>
+    <p>The backend regression suite uses Flask’s test client and temporary SQLite storage. It was executed successfully after the confidence field was added.</p>
+    <table>
+      <thead><tr><th>Test case</th><th>Expected behavior</th><th>Result</th></tr></thead>
+      <tbody>
+        <tr><td>Prediction persistence and clear</td><td>Returns a history ID, saves one record, and clears history through the endpoint.</td><td>PASS</td></tr>
+        <tr><td>Empty prediction input</td><td>Rejects blank text with HTTP 400 and a clear error.</td><td>PASS</td></tr>
+        <tr><td>Legacy database migration</td><td>Adds the evidence JSON column to an older schema.</td><td>PASS</td></tr>
+        <tr><td>Missing NewsAPI key</td><td>Returns explicit provider-unavailable status without blocking prediction.</td><td>PASS</td></tr>
+        <tr><td>NewsAPI response limits/label</td><td>Limits results to five and identifies them as related reporting, not a verdict.</td><td>PASS</td></tr>
+        <tr><td>Private article URL</td><td>Rejects loopback/private destination.</td><td>PASS</td></tr>
+        <tr><td>Confidence response</td><td>Includes numeric confidence between 0 and 1.</td><td>PASS</td></tr>
+      </tbody>
+    </table>
+    <h3>Additional verification</h3>
+    <ul>
+      <li>JavaScript syntax checked with Node.</li>
+      <li>Python syntax and Flask/Pylance diagnostics checked.</li>
+      <li>Live Flask app returned HTTP 200 for the application page.</li>
+      <li>Browser demonstration verified the confidence UI for all three result states.</li>
+      <li>Dataset training run produced the model, vectorizer, and calibrated-confidence artifacts.</li>
+    </ul>
+    <div class="callout"><b>Testing scope:</b> the passing regression suite confirms selected backend behaviors. It is not a complete security audit, production load test, or independent validation of factual accuracy.</div>
+  </section>
+
+  <section class="page">
+    <div class="chapter-kicker">Chapter 6</div>
+    <h2 class="chapter-title">Limitations, Privacy, and Risk</h2>
+    <h3>6.1 Model limitations</h3>
+    <ul>
+      <li>The classifier learns from a finite labeled dataset and may reflect publisher, topic, date, and writing-style biases.</li>
+      <li>Random holdout performance can overstate performance on new sources. The publisher-held-out test shows the class-imbalance problem.</li>
+      <li>Short, novel, ambiguous, or out-of-domain claims may produce UNCERTAIN or incorrect labels.</li>
+      <li>Calibrated confidence is data-dependent and must not be presented as truth probability or per-claim accuracy.</li>
+    </ul>
+    <h3>6.2 Evidence and external services</h3>
+    <ul>
+      <li>NewsAPI related articles are not endorsements or fact-check verdicts. The integration requires a valid key and has not been live-tested in this project environment.</li>
+      <li>Google links open search results; they are not citations checked by the detector.</li>
+      <li>Article extraction may fail on blocked, paywalled, JavaScript-only, or poorly structured pages.</li>
+    </ul>
+    <h3>6.3 Security and privacy</h3>
+    <ul>
+      <li>History is stored in a local SQLite file shared across users of the running server.</li>
+      <li>Sign-in and profile controls are browser-only interactions. They do not authenticate users; passwords are not stored or verified.</li>
+      <li>The local Flask server is a development server bound to loopback, not a production deployment configuration.</li>
+      <li>Public URL validation and bounded request handling reduce specific risks but do not replace a full security review.</li>
+    </ul>
+    <div class="callout warning"><b>Deployment warning:</b> do not expose this development configuration as a multi-user public service without implementing real server-side authentication, access control, secure deployment, privacy controls, and operational monitoring.</div>
+  </section>
+
+  <section class="page">
+    <div class="chapter-kicker">Chapter 7</div>
+    <h2 class="chapter-title">Conclusion and Future Work</h2>
+    <h3>7.1 Conclusion</h3>
+    <p>The project delivers an end-to-end local news-text screening workflow: browser input, Flask request handling, optional article extraction, TF–IDF classification, uncertainty signaling, calibrated model confidence, related-coverage status, SQLite-backed history, and source-search links. The interface and backend are connected from one origin, and the focused regression suite passes.</p>
+    <p>Evaluation is encouraging on a stratified random sample but substantially less convincing for publisher transfer and fake-class precision. The correct product interpretation is therefore “a model-generated signal to support further checking,” not “automatic truth detection.” The application’s confidence meter is explicitly distinct from its test-set accuracy.</p>
+    <h3>7.2 Future work</h3>
+    <ol>
+      <li>Evaluate on a larger, balanced, recent, independently labeled dataset with source and time held out.</li>
+      <li>Review publisher/label leakage and report confidence calibration by class, topic, and publisher group.</li>
+      <li>Add trusted, traceable source citations and a human review workflow; never equate related coverage with evidence.</li>
+      <li>Implement server-side accounts, password hashing, session security, per-user history, and privacy controls before multi-user deployment.</li>
+      <li>Deploy behind a production WSGI server with HTTPS, secret management, logging, rate limits, and monitoring.</li>
+      <li>Add multilingual data and explicit language detection before claiming multilingual model support.</li>
+      <li>Expand accessibility, usability, integration, and adversarial robustness testing.</li>
+    </ol>
+    <h3>References</h3>
+    <ol>
+      <li>Project data files: <span class="mono">IFND.csv</span> and <span class="mono">IFND_10000.csv</span>, supplied in the project workspace.</li>
+      <li>Project implementation and evaluation scripts: <span class="mono">app.py</span>, <span class="mono">database.py</span>, <span class="mono">make_dataset.py</span>, <span class="mono">train_model.py</span>, and <span class="mono">tests/test_history_api.py</span>.</li>
+      <li>scikit-learn documentation, text feature extraction: <a href="https://scikit-learn.org/stable/modules/feature_extraction.html#text-feature-extraction">scikit-learn.org/stable/modules/feature_extraction.html</a>.</li>
+      <li>scikit-learn documentation, calibration: <a href="https://scikit-learn.org/stable/modules/calibration.html">scikit-learn.org/stable/modules/calibration.html</a>.</li>
+      <li>Flask documentation: <a href="https://flask.palletsprojects.com/">flask.palletsprojects.com</a>.</li>
+      <li>SQLite documentation: <a href="https://www.sqlite.org/docs.html">sqlite.org/docs.html</a>.</li>
+    </ol>
+  </section>
+
+  <section class="page">
+    <div class="chapter-kicker">Appendix A</div>
+    <h2 class="chapter-title">Running the Project</h2>
+    <h3>Requirements</h3>
+    <p>Python with Flask, joblib, pandas, and scikit-learn installed according to <span class="mono">requirements.txt</span>. Trained files <span class="mono">model.pkl</span>, <span class="mono">vectorizer.pkl</span>, and <span class="mono">confidence_model.pkl</span> must be present in the Frontend folder.</p>
+    <h3>Start the Flask application</h3>
+    <ol>
+      <li>Open PowerShell in the project’s <span class="mono">Frontend</span> directory.</li>
+      <li>Install dependencies if needed: <span class="mono">py -m pip install -r requirements.txt</span>.</li>
+      <li>Start the server: <span class="mono">py app.py</span>.</li>
+      <li>Open <span class="mono">http://127.0.0.1:5000/app/</span>.</li>
+    </ol>
+    <h3>Run backend regression tests</h3>
+    <p class="mono">py -m unittest discover -s tests -v</p>
+    <h3>Enable optional related news</h3>
+    <p>Set <span class="mono">NEWSAPI_KEY</span> in the same terminal before starting Flask. Keep the key private and do not commit it. The model continues to work without a key.</p>
+    <h3>Retrain artifacts</h3>
+    <p>From the Frontend directory, run <span class="mono">py train_model.py</span>. This evaluates the cleaned sample, then writes the classifier, vectorizer, and calibrated confidence model. Review the printed evaluation results and limitations rather than relying on one aggregate metric.</p>
+    <h3>Project file map</h3>
+    <table>
+      <thead><tr><th>File</th><th>Purpose</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">app.py</td><td>Flask frontend routes, prediction workflow, URL handling, optional provider integration.</td></tr>
+        <tr><td class="mono">database.py</td><td>SQLite schema, migration, persistence, history retrieval and clearing.</td></tr>
+        <tr><td class="mono">train_model.py</td><td>Data cleaning, evaluation, classifier and calibrated-confidence training.</td></tr>
+        <tr><td class="mono">make_dataset.py</td><td>Normalized deduplication and balanced sample generation.</td></tr>
+        <tr><td class="mono">index.html / style.css / script.js</td><td>Dashboard structure, visual design, browser interactions and API calls.</td></tr>
+        <tr><td class="mono">tests/test_history_api.py</td><td>Focused API, database, provider, URL validation, and confidence regression coverage.</td></tr>
+      </tbody>
+    </table>
+    <p class="fine-print">End of report. Cover-page details and formal sign-off fields remain intentionally editable.</p>
+  </section>
+
+</body>
+</html>

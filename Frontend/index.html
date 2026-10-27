@@ -53,6 +53,7 @@
       <button class="avatar hidden" id="avatarBtn" type="button" aria-label="Open settings">
         <span id="avatarLetter">U</span>
       </button>
+
     </nav>
 
   </header>
@@ -86,7 +87,7 @@
     </div>
 
     <div class="sidebar-section">
-      <p id="sidebarAccountLabel">Account</p>
+      <p id="sidebarAccountLabel">Preferences</p>
 
       <button class="side-link" data-section="settings">
         <i class="fa-solid fa-sliders"></i>
@@ -99,7 +100,6 @@
       </button>
     </div>
 
-    <!-- Only visible after login -->
     <div class="sidebar-bottom hidden" id="sidebarBottom">
       <button class="side-link logout" id="logoutBtn">
         <i class="fa-solid fa-arrow-right-from-bracket"></i>
@@ -160,18 +160,18 @@
         </div>
 
         <div class="quick-tools">
-          <span>
+          <button class="quick-tool" type="button" data-tool="text">
             <i class="fa-solid fa-fingerprint"></i>
-            <span id="quickAuthorship">Check Authorship</span>
-          </span>
-          <span>
+            <span id="quickAuthorship">Analyze text patterns</span>
+          </button>
+          <button class="quick-tool" type="button" data-tool="article">
             <i class="fa-solid fa-newspaper"></i>
             <span id="quickArticles">Check articles</span>
-          </span>
-          <span>
+          </button>
+          <button class="quick-tool" type="button" data-tool="sources">
             <i class="fa-solid fa-link"></i>
-            <span id="quickSources">Cross-Reference Sources</span>
-          </span>
+            <span id="quickSources">Search sources online</span>
+          </button>
         </div>
 
       </div>
@@ -182,11 +182,11 @@
         <div class="section-heading">
           <div>
             <span class="section-kicker" id="methodsKicker">THREE WAYS TO INVESTIGATE</span>
-            <h2 id="methodsTitle">Choose your evidence.</h2>
+            <h2 id="methodsTitle">Start an investigation.</h2>
           </div>
           <p id="methodsDescription">
-            Each route starts a different type of verification
-            workflow. Click a card to use it.
+            Analyze text or an article URL with the model, or share this app.
+            The model provides a signal, not verified evidence.
           </p>
         </div>
 
@@ -282,6 +282,28 @@
 
         </div>
 
+        <section class="confidence-card hidden" id="confidenceCard" aria-label="Model confidence">
+          <div class="confidence-heading">
+            <div>
+              <span class="confidence-label">MODEL CONFIDENCE</span>
+              <p>Estimated confidence in this model label</p>
+            </div>
+            <strong id="confidenceValue">--%</strong>
+          </div>
+          <div
+            class="confidence-track"
+            id="confidenceTrack"
+            role="progressbar"
+            aria-label="Estimated model confidence"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            aria-valuenow="0"
+          >
+            <span id="confidenceBar"></span>
+          </div>
+          <small>This is not prediction accuracy or independent fact verification.</small>
+        </section>
+
         <section class="article-details hidden" id="articleDetails" aria-label="Fetched article details">
           <div class="article-detail-row">
             <span id="publisherLabel">Publisher</span>
@@ -291,6 +313,15 @@
           <a class="article-source-link" id="articleSourceLink" target="_blank" rel="noopener noreferrer">Open original article</a>
           <span class="article-preview-label" id="articlePreviewLabel">Extracted text preview</span>
           <p id="articlePreview"></p>
+        </section>
+
+        <section class="evidence-results hidden" id="newsEvidence" aria-label="Related news coverage">
+          <div class="evidence-heading">
+            <h3>Related news coverage</h3>
+            <span>Not a fact-check verdict</span>
+          </div>
+          <p id="evidenceStatus"></p>
+          <ul id="evidenceList"></ul>
         </section>
 
         <ul class="result-checks" id="resultChecks"></ul>
@@ -323,7 +354,7 @@
 
       <div>
         <i class="fa-solid fa-fingerprint"></i>
-        <span><b id="multiText">Multi-signal</b> <span id="multiDescription">verification</span></span>
+        <span><b id="multiText">ML model</b> <span id="multiDescription">text-pattern signal</span></span>
       </div>
 
       <div>
@@ -333,7 +364,7 @@
 
       <div>
         <i class="fa-solid fa-lock"></i>
-        <span><b id="privateText">Private</b> <span id="privateDescription">account controls</span></span>
+        <span><b id="privateText">Local</b> <span id="privateDescription">preferences</span></span>
       </div>
 
     </section>
@@ -379,7 +410,7 @@
         <article class="about-card">
           <i class="fa-solid fa-lock"></i>
           <h3>Your data</h3>
-          <p>History and settings are stored locally in your browser. History is available only after you sign in.</p>
+          <p>Investigation history is stored in the local SQLite database and may be visible to other users of this server. This app does not currently provide user accounts or per-user access controls.</p>
         </article>
 
       </div>
@@ -406,13 +437,12 @@
 
         <span class="section-kicker">CASE FILE ACCESS</span>
 
-        <h2 id="authHeading">Welcome back</h2>
+        <h2 id="authHeading">Sign In</h2>
 
-        <p class="auth-subtitle" id="authSubtitle">Login to continue your investigations.</p>
+        <p class="auth-subtitle" id="authSubtitle">Sign in to your account.</p>
 
         <form id="authForm">
 
-          <!-- NAME -->
           <label id="nameField" class="field hidden">
             <span id="nameLabel">Full name</span>
             <div>
@@ -421,7 +451,6 @@
             </div>
           </label>
 
-          <!-- EMAIL -->
           <label class="field">
             <span id="emailLabel">Email</span>
             <div>
@@ -430,7 +459,6 @@
             </div>
           </label>
 
-          <!-- PASSWORD -->
           <label class="field">
             <span id="passwordLabel">Password</span>
             <div>
@@ -439,12 +467,11 @@
             </div>
           </label>
 
-          <!-- CONFIRM PASSWORD -->
           <label id="confirmField" class="field hidden">
             <span id="confirmLabel">Confirm password</span>
             <div>
               <i class="fa-solid fa-shield-halved"></i>
-              <input id="authConfirmPassword" type="password" placeholder="Repeat password" />
+              <input id="authConfirmPassword" type="password" placeholder="Repeat your password" />
             </div>
           </label>
 
@@ -490,27 +517,6 @@
     </div>
 
     <div class="settings-groups">
-
-      <!-- ACCOUNT -->
-      <div class="settings-group">
-        <div class="group-label" id="accountGroupLabel">Account &amp; preferences</div>
-
-        <div class="setting-item">
-          <div>
-            <b id="manageAccountText">Manage account</b>
-            <small id="manageAccountDescription">Update profile, login access and saved investigations.</small>
-          </div>
-          <button type="button" class="setting-action" data-setting-action="account" id="accountOpenBtn">Open</button>
-        </div>
-
-        <div class="setting-item">
-          <div>
-            <b id="managePasswordText">Manage password</b>
-            <small id="managePasswordDescription">Change your password and recovery settings.</small>
-          </div>
-          <button type="button" class="setting-action" data-setting-action="password">Edit</button>
-        </div>
-      </div>
 
       <!-- APPEARANCE -->
       <div class="settings-group">
@@ -571,7 +577,7 @@
 
     <div class="setting-note">
       <i class="fa-solid fa-circle-info"></i>
-      <span id="settingNoteText">These settings are stored locally in your browser.</span>
+      <span id="settingNoteText">Preferences are stored in this browser. Investigation history is stored on this server and is not separated by user accounts.</span>
     </div>
 
   </div>
