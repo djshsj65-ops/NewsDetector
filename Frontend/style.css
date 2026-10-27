@@ -578,20 +578,14 @@ a {
   gap: 7px;
 }
 
-<<<<<<< HEAD
-.quick-tool {
-  display: inline-flex;
-=======
 .quick-tools .quick-tool {
-  display: flex;
->>>>>>> d352270299c0a035bfea9ce5072f434925afd7bd
+  display: inline-flex;
   align-items: center;
   gap: 7px;
   padding: 0;
   border: 0;
   background: transparent;
   color: inherit;
-<<<<<<< HEAD
   font: inherit;
   cursor: pointer;
 }
@@ -601,16 +595,6 @@ a {
 }
 
 .quick-tool:focus-visible {
-=======
-  text-align: left;
-}
-
-.quick-tools .quick-tool:hover {
-  color: var(--text);
-}
-
-.quick-tools .quick-tool:focus-visible {
->>>>>>> d352270299c0a035bfea9ce5072f434925afd7bd
   outline: 2px solid var(--cyan);
   outline-offset: 3px;
 }
@@ -1943,22 +1927,16 @@ body.dark .avatar {
   line-height: 1.45;
 }
 
-<<<<<<< HEAD
 .confidence-card {
   margin: 18px 0 14px;
   padding: 15px 17px;
   border: 1px solid rgba(11, 138, 150, .2);
   border-radius: 16px;
   background: linear-gradient(135deg, rgba(11, 138, 150, .08), rgba(37, 99, 235, .045));
-=======
-.model-confidence {
-  margin: 18px 0 14px;
->>>>>>> d352270299c0a035bfea9ce5072f434925afd7bd
 }
 
 .confidence-heading {
   display: flex;
-<<<<<<< HEAD
   align-items: center;
   justify-content: space-between;
   gap: 12px;
@@ -1990,19 +1968,6 @@ body.dark .avatar {
   height: 8px;
   overflow: hidden;
   border-radius: 999px;
-=======
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 8px;
-  color: var(--text);
-  font-size: 12px;
-}
-
-.confidence-track {
-  height: 9px;
-  overflow: hidden;
-  border-radius: 99px;
->>>>>>> d352270299c0a035bfea9ce5072f434925afd7bd
   background: rgba(22, 35, 58, .1);
 }
 
@@ -2011,7 +1976,6 @@ body.dark .avatar {
   width: 0;
   height: 100%;
   border-radius: inherit;
-<<<<<<< HEAD
   background: linear-gradient(90deg, var(--cyan), #38BDF8);
   transition: width .45s ease;
 }
@@ -2038,18 +2002,6 @@ body.dark .avatar {
 
 .confidence-card.hidden {
   display: none;
-=======
-  background: linear-gradient(90deg, var(--cyan), var(--gold));
-  transition: width .4s ease;
-}
-
-.model-confidence small {
-  display: block;
-  margin-top: 7px;
-  color: var(--muted);
-  font-size: 10px;
-  line-height: 1.4;
->>>>>>> d352270299c0a035bfea9ce5072f434925afd7bd
 }
 
 .article-details {

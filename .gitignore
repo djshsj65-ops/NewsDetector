@@ -1,3 +1,7 @@
 Frontend/news_detector.sqlite3
 Frontend/news_detector.sqlite3-shm
 Frontend/news_detector.sqlite3-wal
+Frontend/.venv/
+Frontend/__pycache__/
+Frontend/tests/__pycache__/
+Frontend/*.py[cod]

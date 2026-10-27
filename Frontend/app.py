@@ -12,7 +12,6 @@ from urllib.request import HTTPRedirectHandler, Request, build_opener, urlopen
 
 import joblib
 from flask import Flask, request, jsonify, send_from_directory
-<<<<<<< HEAD
 from werkzeug.exceptions import RequestEntityTooLarge
 
 from database import (
@@ -21,9 +20,6 @@ from database import (
     initialize_database,
     save_investigation,
 )
-=======
-from flask_cors import CORS
->>>>>>> d352270299c0a035bfea9ce5072f434925afd7bd
 
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = 128_000
@@ -228,7 +224,7 @@ def search_related_news(query):
         return {
             "available": False,
             "provider": "NewsAPI",
-            "message": "Set the NEWSAPI_KEY environment variable to load related news articles.",
+            "message": "Related news search is unavailable right now. You can still check the links below.",
             "articles": [],
         }
 
@@ -378,21 +374,13 @@ def predict():
 
         prediction = model.predict(text_vector)[0]
         margin = abs(float(model.decision_function(text_vector)[0]))
-<<<<<<< HEAD
         probabilities = confidence_model.predict_proba(text_vector)[0]
         prediction_class_index = list(confidence_model.classes_).index(prediction)
-=======
-        confidence = round(50 + 50 * (1 - math.exp(-margin)))
->>>>>>> d352270299c0a035bfea9ce5072f434925afd7bd
 
         result = {
             "prediction": bool(prediction == 1),
             "uncertain": margin < UNCERTAIN_MARGIN_THRESHOLD,
-<<<<<<< HEAD
             "confidence": float(probabilities[prediction_class_index]),
-=======
-            "confidence": confidence,
->>>>>>> d352270299c0a035bfea9ce5072f434925afd7bd
             "word_count": len(news_text.split())
         }
 

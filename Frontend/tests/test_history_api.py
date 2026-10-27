@@ -105,7 +105,7 @@ class HistoryApiTests(unittest.TestCase):
             )
         self.assertEqual(response.status_code, 200)
         self.assertFalse(response.get_json()["evidence"]["available"])
-        self.assertIn("NEWSAPI_KEY", response.get_json()["evidence"]["message"])
+        self.assertIn("unavailable right now", response.get_json()["evidence"]["message"])
 
     def test_newsapi_articles_are_bounded_and_labeled_as_related_coverage(self):
         class FakeResponse:
