@@ -2,17 +2,18 @@ import ipaddress
 import json
 import math
 import os
-import sqlite3
+import re
 import socket
-from pathlib import Path
+import sqlite3
+import unicodedata
 from html.parser import HTMLParser
+from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode, urlparse
 from urllib.request import HTTPRedirectHandler, Request, build_opener, urlopen
 
 import joblib
-from flask import Flask, request, jsonify, send_from_directory
-<<<<<<< HEAD
+from flask import Flask, jsonify, request, send_from_directory
 from werkzeug.exceptions import RequestEntityTooLarge
 
 from database import (
@@ -21,18 +22,15 @@ from database import (
     initialize_database,
     save_investigation,
 )
-=======
-from flask_cors import CORS
->>>>>>> d352270299c0a035bfea9ce5072f434925afd7bd
 
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = 128_000
 
 FRONTEND_DIR = Path(__file__).resolve().parent
-
 model = joblib.load(FRONTEND_DIR / "model.pkl")
 confidence_model = joblib.load(FRONTEND_DIR / "confidence_model.pkl")
 vectorizer = joblib.load(FRONTEND_DIR / "vectorizer.pkl")
+
 MAX_PAGE_BYTES = 1_000_000
 MAX_INPUT_CHARS = 20_000
 UNCERTAIN_MARGIN_THRESHOLD = math.log(1.25)
@@ -74,7 +72,17 @@ def find_author_metadata(value):
 
 
 class ArticleTextParser(HTMLParser):
-    ignored_tags = {"script", "style", "noscript", "svg", "nav", "header", "footer", "aside", "form"}
+    ignored_tags = {
+        "script",
+        "style",
+        "noscript",
+        "svg",
+        "nav",
+        "header",
+        "footer",
+        "aside",
+        "form",
+    }
 
     def __init__(self):
         super().__init__(convert_charrefs=True)
@@ -99,10 +107,18 @@ class ArticleTextParser(HTMLParser):
                 self.title_meta = content
             elif key in {"og:site_name", "application-name"} and content and not self.publisher:
                 self.publisher = content
-            elif key in {"author", "article:author", "citation_author", "parsely-author"} and content and not self.author:
+            elif (
+                key in {"author", "article:author", "citation_author", "parsely-author"}
+                and content
+                and not self.author
+            ):
                 self.author = content[:160]
 
-        if tag == "script" and attributes.get("type", "").split(";", 1)[0].strip().lower() == "application/ld+json":
+        is_json_ld = (
+            attributes.get("type", "").split(";", 1)[0].strip().lower()
+            == "application/ld+json"
+        )
+        if tag == "script" and is_json_ld:
             self.in_json_ld = True
             self.json_ld_parts = []
             return
@@ -219,7 +235,7 @@ def fetch_article_text(url):
         "publisher": publisher[:120],
         "author": parser.author,
         "url": final_url,
-        "preview": article_text[:500]
+        "preview": article_text[:500],
     }
 
 
@@ -232,12 +248,14 @@ def search_related_news(query):
             "articles": [],
         }
 
-    params = urlencode({
-        "q": query[:200],
-        "language": "en",
-        "sortBy": "relevancy",
-        "pageSize": 5,
-    })
+    params = urlencode(
+        {
+            "q": query[:200],
+            "language": "en",
+            "sortBy": "relevancy",
+            "pageSize": 5,
+        }
+    )
     request = Request(
         f"https://newsapi.org/v2/everything?{params}",
         headers={"X-Api-Key": NEWSAPI_KEY, "User-Agent": "NewsDetector/1.0"},
@@ -287,13 +305,15 @@ def search_related_news(query):
         if parsed_url.scheme not in {"http", "https"} or not parsed_url.hostname:
             continue
         source = item.get("source") or {}
-        articles.append({
-            "title": str(item.get("title") or "Untitled article")[:300],
-            "publisher": str(source.get("name") or "Unknown publisher")[:120],
-            "published_at": str(item.get("publishedAt") or "")[:40],
-            "url": article_url,
-            "description": str(item.get("description") or "")[:500],
-        })
+        articles.append(
+            {
+                "title": str(item.get("title") or "Untitled article")[:300],
+                "publisher": str(source.get("name") or "Unknown publisher")[:120],
+                "published_at": str(item.get("publishedAt") or "")[:40],
+                "url": article_url,
+                "description": str(item.get("description") or "")[:500],
+            }
+        )
 
     return {
         "available": True,
@@ -306,6 +326,11 @@ def search_related_news(query):
 @app.route("/")
 def home():
     return send_from_directory(app.root_path, "index.html")
+
+
+@app.route("/health")
+def health():
+    return jsonify({"status": "ok", "service": "news-detector-api"})
 
 
 @app.route("/style.css")
@@ -373,27 +398,23 @@ def predict():
         else:
             news_text = supplied_text
 
-        # Convert news text into TF-IDF
-        text_vector = vectorizer.transform([news_text])
+        model_text = re.sub(
+            r"\s+",
+            " ",
+            unicodedata.normalize("NFKC", news_text),
+        ).strip().casefold()
+        text_vector = vectorizer.transform([model_text])
 
         prediction = model.predict(text_vector)[0]
         margin = abs(float(model.decision_function(text_vector)[0]))
-<<<<<<< HEAD
         probabilities = confidence_model.predict_proba(text_vector)[0]
         prediction_class_index = list(confidence_model.classes_).index(prediction)
-=======
-        confidence = round(50 + 50 * (1 - math.exp(-margin)))
->>>>>>> d352270299c0a035bfea9ce5072f434925afd7bd
 
         result = {
             "prediction": bool(prediction == 1),
             "uncertain": margin < UNCERTAIN_MARGIN_THRESHOLD,
-<<<<<<< HEAD
             "confidence": float(probabilities[prediction_class_index]),
-=======
-            "confidence": confidence,
->>>>>>> d352270299c0a035bfea9ce5072f434925afd7bd
-            "word_count": len(news_text.split())
+            "word_count": len(news_text.split()),
         }
 
         if article_details:
@@ -402,15 +423,17 @@ def predict():
                 "publisher": article_details["publisher"],
                 "author": article_details["author"],
                 "url": article_details["url"],
-                "preview": article_details["preview"]
+                "preview": article_details["preview"],
             }
 
         search_query = article_details["title"] if article_details else news_text
         result["evidence"] = search_related_news(search_query)
 
         result_label = (
-            "UNCERTAIN" if result["uncertain"]
-            else "LIKELY REAL" if result["prediction"]
+            "UNCERTAIN"
+            if result["uncertain"]
+            else "LIKELY REAL"
+            if result["prediction"]
             else "LIKELY FAKE"
         )
         result["history_id"] = save_investigation(

@@ -1,10 +1,10 @@
+import json
+import sqlite3
 import tempfile
 import unittest
-import json
 from contextlib import closing
 from pathlib import Path
 from unittest.mock import patch
-import sqlite3
 
 import app as detector
 import database
@@ -30,6 +30,14 @@ class HistoryApiTests(unittest.TestCase):
     def setUp(self):
         database.clear_investigations()
         self.client = detector.app.test_client()
+
+    def test_health_endpoint_identifies_the_detector_service(self):
+        response = self.client.get("/health")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.get_json(),
+            {"status": "ok", "service": "news-detector-api"},
+        )
 
     def test_prediction_is_saved_and_can_be_cleared(self):
         evidence = {
@@ -61,6 +69,33 @@ class HistoryApiTests(unittest.TestCase):
         clear_response = self.client.delete("/history")
         self.assertEqual(clear_response.status_code, 200)
         self.assertEqual(self.client.get("/history").get_json(), [])
+
+    def test_prediction_and_confidence_are_case_insensitive(self):
+        evidence = {
+            "available": False,
+            "provider": "NewsAPI",
+            "message": "Not configured",
+            "articles": [],
+        }
+        inputs = [
+            "is modi a prime minister of inida",
+            "IS MODI A PRIME MINISTER OF INIDA",
+            "Is Modi a Prime Minister of Inida",
+        ]
+        with patch.object(detector, "search_related_news", return_value=evidence):
+            results = [
+                self.client.post(
+                    "/predict",
+                    json={"text": text, "is_url": False},
+                ).get_json()
+                for text in inputs
+            ]
+
+        model_outputs = [
+            (result["prediction"], result["uncertain"], result["confidence"])
+            for result in results
+        ]
+        self.assertEqual(model_outputs, [model_outputs[0]] * len(inputs))
 
     def test_empty_prediction_input_is_rejected(self):
         response = self.client.post("/predict", json={"text": " ", "is_url": False})

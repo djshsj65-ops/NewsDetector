@@ -67,14 +67,16 @@ def evaluate(name, train_indices, test_indices, statements, labels):
     print(f"\n=== {name} ===")
     print(f"Train rows: {len(train_indices)}; test rows: {len(test_indices)}")
     print("Per-class metrics (labels: 0=FAKE, 1=TRUE):")
-    print(classification_report(
-        truth,
-        predictions,
-        labels=[0, 1],
-        target_names=["FAKE", "TRUE"],
-        digits=3,
-        zero_division=0,
-    ))
+    print(
+        classification_report(
+            truth,
+            predictions,
+            labels=[0, 1],
+            target_names=["FAKE", "TRUE"],
+            digits=3,
+            zero_division=0,
+        )
+    )
     print("Confusion matrix (rows=true, columns=predicted; labels [FAKE, TRUE]):")
     print(confusion_matrix(truth, predictions, labels=[0, 1]))
 
@@ -130,7 +132,8 @@ def main():
         f"{len(conflicting_statements)} groups / {conflict_rows} rows"
     )
     print(f"Additional same-label normalized duplicate rows dropped: {duplicate_rows}")
-    print(f"Clean rows: {len(data)}; label counts: {data['Label'].value_counts().sort_index().to_dict()}")
+    label_counts = data["Label"].value_counts().sort_index().to_dict()
+    print(f"Clean rows: {len(data)}; label counts: {label_counts}")
 
     if data["Label"].nunique() != 2 or data["Label"].value_counts().min() < 2:
         raise ValueError("Need at least two examples of each class for held-out evaluation.")
@@ -144,7 +147,13 @@ def main():
         random_state=RANDOM_STATE,
         stratify=labels,
     )
-    evaluate("Stratified random 80/20 holdout", train_indices, test_indices, statements, labels)
+    evaluate(
+        "Stratified random 80/20 holdout",
+        train_indices,
+        test_indices,
+        statements,
+        labels,
+    )
 
     if "Web" in data.columns:
         publishers = data["Web"].fillna("").astype(str).str.strip().str.upper()

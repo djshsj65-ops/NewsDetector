@@ -299,9 +299,6 @@ const resultChecks = $("resultChecks");
 const resultIconI = $("resultIconI");
 const articleDetails = $("articleDetails");
 const resultSources = $("resultSources");
-const confidenceBlock = $("confidenceBlock");
-const confidenceText = $("confidenceText");
-const confidenceBar = $("confidenceBar");
 
 
 function openResult() {
@@ -328,7 +325,6 @@ resultSection.addEventListener("click", (event) => {
 
 
 function renderChecks(items) {
-
   resultChecks.innerHTML = items.map((item) => `
     <li class="${item.ok ? "ok" : "warn"}">
       <span class="check-icon"><i class="fa-solid ${item.icon}"></i></span>
@@ -336,7 +332,6 @@ function renderChecks(items) {
       <i class="fa-solid ${item.ok ? "fa-check" : "fa-triangle-exclamation"} check-mark"></i>
     </li>
   `).join("");
-
 }
 
 
@@ -406,7 +401,9 @@ function renderNewsEvidence(evidence) {
   if (!evidence || typeof evidence !== "object") return;
 
   evidenceStatus.textContent = evidence.message || "Related news articles are unavailable.";
-  evidenceList.innerHTML = (Array.isArray(evidence.articles) ? evidence.articles : [])
+  const articles = Array.isArray(evidence.articles) ? evidence.articles : [];
+
+  evidenceList.innerHTML = articles
     .map((article) => {
       const safeUrl = safeHttpUrl(article.url);
       if (!safeUrl) return "";
@@ -417,6 +414,7 @@ function renderNewsEvidence(evidence) {
       const date = article.published_at
         ? `<small>${escapeHTML(article.published_at)}</small>`
         : "";
+
       return `
         <li>
           <a href="${escapeHTML(safeUrl)}" target="_blank" rel="noopener noreferrer">
@@ -426,13 +424,23 @@ function renderNewsEvidence(evidence) {
           ${description}
         </li>
       `;
-    }).join("");
+    })
+    .join("");
+
   newsEvidence.classList.remove("hidden");
 }
 
 
-function setResult({ state, icon, title, subtitle, badge, action, checks, confidence = null }) {
-
+function setResult({
+  state,
+  icon,
+  title,
+  subtitle,
+  badge,
+  action,
+  checks,
+  confidence = null
+}) {
   resultPopup.className = "result-popup" + (state ? " " + state : "");
   resultIconI.className = "fa-solid " + icon;
 
@@ -443,15 +451,9 @@ function setResult({ state, icon, title, subtitle, badge, action, checks, confid
   resultBadge.textContent = badge;
   resultBadge.className = "result-badge" + (state ? " " + state : "");
 
-  confidenceBlock.classList.toggle("hidden", confidence === null);
-  if (confidence !== null) {
-    confidenceText.textContent = `${confidence}%`;
-    confidenceBar.style.width = `${confidence}%`;
-    confidenceBar.parentElement.setAttribute("aria-valuenow", confidence);
-  }
+  setConfidence(confidence);
 
   renderChecks(checks || []);
-
 }
 
 
@@ -531,19 +533,34 @@ async function investigate(value = input.value.trim()) {
 
     renderNewsEvidence(data.evidence);
 
+    let authorCheck = null;
     if (isUrl) {
-      if (!data.article || typeof data.article.title !== "string" || typeof data.article.publisher !== "string" || typeof data.article.preview !== "string" || typeof data.article.url !== "string") {
+      const article = data.article;
+      const hasArticleDetails =
+        article &&
+        typeof article.title === "string" &&
+        typeof article.publisher === "string" &&
+        typeof article.preview === "string" &&
+        typeof article.url === "string";
+
+      if (!hasArticleDetails) {
         throw new Error("The backend did not return article details.");
       }
 
-      const listedAuthor = typeof data.article.author === "string" ? data.article.author.trim() : "";
+      const listedAuthor =
+        typeof article.author === "string" ? article.author.trim() : "";
+      authorCheck = {
+        ok: Boolean(listedAuthor),
+        icon: "fa-user",
+        text: listedAuthor ? "Listed author found in article metadata" : "No listed author metadata found"
+      };
       $("articleAuthor").textContent = listedAuthor || "No author metadata found";
-      $("articleTitle").textContent = data.article.title;
-      $("articlePublisher").textContent = data.article.publisher;
-      $("articleSourceLink").href = data.article.url;
-      $("articlePreview").textContent = data.article.preview;
+      $("articleTitle").textContent = article.title;
+      $("articlePublisher").textContent = article.publisher;
+      $("articleSourceLink").href = article.url;
+      $("articlePreview").textContent = article.preview;
       articleDetails.classList.remove("hidden");
-      buildSourceLinks(data.article.title || data.article.preview || value);
+      buildSourceLinks(article.title || article.preview || value);
     } else {
       buildSourceLinks(value);
     }
@@ -565,8 +582,6 @@ async function investigate(value = input.value.trim()) {
       icon: "fa-file-lines",
       text: `${words} words analyzed`
     };
-
-    const resultLabel = data.uncertain ? "UNCERTAIN" : prediction ? "LIKELY REAL" : "LIKELY FAKE";
 
     if (data.uncertain) {
       setResult({
@@ -829,6 +844,7 @@ const translations = {
     quickSources: "Cross-Reference Sources",
     aiDisclaimer: "AI can make mistakes. Verify important claims with trusted sources.",
     publisher: "Publisher",
+    authorLabel: "Listed author",
     articlePreview: "Extracted text preview",
     openArticle: "Open original article",
     sourceLinks: "Look up this claim",
@@ -879,6 +895,7 @@ const translations = {
     quickSources: "सोर्स क्रॉस-चेक करें",
     aiDisclaimer: "AI गलतियाँ कर सकता है। ज़रूरी दावों की विश्वसनीय स्रोतों से पुष्टि करें।",
     publisher: "प्रकाशक",
+    authorLabel: "सूचीबद्ध लेखक",
     articlePreview: "निकाला गया टेक्स्ट",
     openArticle: "मूल आर्टिकल खोलें",
     sourceLinks: "इस दावे की और जानकारी देखें",
@@ -1237,12 +1254,16 @@ $("homeLink").addEventListener("click", (event) => {
    QUICK TOOLS
 ========================================================= */
 
-document.querySelectorAll(".quick-tools > span").forEach((tool) => {
-
+document.querySelectorAll(".quick-tools [data-tool]").forEach((tool) => {
   tool.addEventListener("click", () => {
-    showToast("This investigation route will be connected in the next backend stage.");
+    if (tool.dataset.tool === "article") {
+      checkListedAuthor();
+    } else if (tool.dataset.tool === "sources") {
+      crossReferenceSources();
+    } else {
+      investigate();
+    }
   });
-
 });
 
 
