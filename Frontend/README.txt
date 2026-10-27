@@ -7,6 +7,7 @@
 - `database.py` — SQLite schema and investigation-history read/write helpers
 - `news_detector.sqlite3` — automatically created local database file
 
+<<<<<<< HEAD
 ## Run
 1. Open a terminal in the `Frontend` folder.
 2. Install the Python dependencies with `py -m pip install -r requirements.txt`.
@@ -32,13 +33,28 @@ History is shared by users of this local app. Sign-in and profile controls are
 browser-only and do not provide server authentication or per-user access
 control; passwords are not stored or verified. Google search links are
 user-initiated searches and are not verified citations.
+=======
+## Run on Windows
+1. Double-click `run.bat`.
+2. Open `http://127.0.0.1:5000` in your browser.
+3. Keep the command window open while using the website.
+
+Flask serves both the website and prediction API from the same address. The
+launcher uses Python 3.14 free-threaded (`py -3.14t`) to match the installed
+scikit-learn build used to load the model.
+>>>>>>> d352270299c0a035bfea9ce5072f434925afd7bd
 
 Paste either a claim or a public article URL. Article URLs are fetched by Flask,
 and readable page text is passed to the trained classifier. Some websites may
 block automated requests or provide too little readable article text.
 The result also shows the fetched publisher and text preview, with search links
 for fact checks and other sources; those search links are not verified citations.
+<<<<<<< HEAD
 The result panel displays a cross-validated, calibrated model-confidence estimate
 for the predicted class. It is not the model's accuracy and does not establish
 whether the claim is true. The confidence model is created by running
 `py train_model.py` after changes to the training data or model pipeline.
+=======
+
+
+>>>>>>> d352270299c0a035bfea9ce5072f434925afd7bd

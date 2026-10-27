@@ -299,9 +299,13 @@ const resultChecks = $("resultChecks");
 const resultIconI = $("resultIconI");
 const articleDetails = $("articleDetails");
 const resultSources = $("resultSources");
+const confidenceBlock = $("confidenceBlock");
+const confidenceText = $("confidenceText");
+const confidenceBar = $("confidenceBar");
 
 
 function openResult() {
+  resultSection.classList.remove("hidden");
   resultSection.classList.add("show");
   resultSection.setAttribute("aria-hidden", "false");
   document.body.classList.add("modal-open");
@@ -310,6 +314,7 @@ function openResult() {
 
 function closeResult() {
   resultSection.classList.remove("show");
+  resultSection.classList.add("hidden");
   resultSection.setAttribute("aria-hidden", "true");
   document.body.classList.remove("modal-open");
 }
@@ -338,13 +343,54 @@ function renderChecks(items) {
 function buildSourceLinks(query) {
   const searchText = query.trim().slice(0, 200);
   const factCheckUrl = new URL("https://www.google.com/search");
-  const sourceSearchUrl = new URL("https://www.google.com/search");
+  const sourceSearchUrl = new URL("https://news.google.com/search");
 
   factCheckUrl.searchParams.set("q", `${searchText} fact check`);
   sourceSearchUrl.searchParams.set("q", searchText);
   $("factCheckLink").href = factCheckUrl.href;
   $("independentSourcesLink").href = sourceSearchUrl.href;
   resultSources.classList.remove("hidden");
+}
+
+
+function checkListedAuthor() {
+  const articleUrl = normalizeArticleUrl(input.value.trim());
+
+  if (!articleUrl) {
+    showToast("Paste an article URL to check its listed author.");
+    input.focus();
+    return;
+  }
+
+  investigate(articleUrl);
+}
+
+
+function crossReferenceSources() {
+  const value = input.value.trim();
+
+  if (!value) {
+    showToast("Enter a claim or article URL to search for other coverage.");
+    input.focus();
+    return;
+  }
+
+  const query = normalizeArticleUrl(value) || value;
+  resetResultExtras();
+  setResult({
+    state: "",
+    icon: "fa-link",
+    title: "Compare source coverage",
+    subtitle: "Search for fact checks and other news coverage of this claim.",
+    badge: "SOURCE SEARCH",
+    action: "Search results are leads, not proof. Compare dates, evidence, and the original sources yourself.",
+    checks: [
+      { ok: true, icon: "fa-magnifying-glass", text: "Fact-check search prepared" },
+      { ok: true, icon: "fa-newspaper", text: "News coverage search prepared" }
+    ]
+  });
+  buildSourceLinks(query);
+  openResult();
 }
 
 
@@ -385,7 +431,7 @@ function renderNewsEvidence(evidence) {
 }
 
 
-function setResult({ state, icon, title, subtitle, badge, action, checks }) {
+function setResult({ state, icon, title, subtitle, badge, action, checks, confidence = null }) {
 
   resultPopup.className = "result-popup" + (state ? " " + state : "");
   resultIconI.className = "fa-solid " + icon;
@@ -396,6 +442,13 @@ function setResult({ state, icon, title, subtitle, badge, action, checks }) {
 
   resultBadge.textContent = badge;
   resultBadge.className = "result-badge" + (state ? " " + state : "");
+
+  confidenceBlock.classList.toggle("hidden", confidence === null);
+  if (confidence !== null) {
+    confidenceText.textContent = `${confidence}%`;
+    confidenceBar.style.width = `${confidence}%`;
+    confidenceBar.parentElement.setAttribute("aria-valuenow", confidence);
+  }
 
   renderChecks(checks || []);
 
@@ -429,7 +482,7 @@ function normalizeArticleUrl(value) {
 async function investigate(value = input.value.trim()) {
 
   if (!value) {
-    showToast("Enter news text first.");
+    showToast("Enter a claim or article URL first.");
     input.focus();
     return;
   }
@@ -442,12 +495,12 @@ async function investigate(value = input.value.trim()) {
   setResult({
     state: "",
     icon: "fa-spinner fa-spin",
-    title: "Analyzing...",
+    title: "Checking...",
     subtitle: isUrl
-      ? "Fetching article text from the supplied URL."
-      : "Sending the news text to the Python ML backend.",
-    badge: "ANALYZING",
-    action: "Please wait while the trained model processes the input.",
+      ? "Reading the article from this URL."
+      : "Checking the claim text.",
+    badge: "CHECKING",
+    action: "One moment...",
     checks: []
   });
 
@@ -483,6 +536,8 @@ async function investigate(value = input.value.trim()) {
         throw new Error("The backend did not return article details.");
       }
 
+      const listedAuthor = typeof data.article.author === "string" ? data.article.author.trim() : "";
+      $("articleAuthor").textContent = listedAuthor || "No author metadata found";
       $("articleTitle").textContent = data.article.title;
       $("articlePublisher").textContent = data.article.publisher;
       $("articleSourceLink").href = data.article.url;
@@ -503,11 +558,6 @@ async function investigate(value = input.value.trim()) {
       throw new Error("Uncertainty status was not returned correctly by the backend.");
     }
 
-    if (typeof data.confidence !== "number" || !Number.isFinite(data.confidence) || data.confidence < 0 || data.confidence > 1) {
-      throw new Error("Estimated model confidence was not returned correctly by the backend.");
-    }
-    setConfidence(data.confidence);
-
     const words = Number(data.word_count) || analysisInput.split(/\s+/).filter(Boolean).length;
 
     const wordsCheck = {
@@ -515,6 +565,8 @@ async function investigate(value = input.value.trim()) {
       icon: "fa-file-lines",
       text: `${words} words analyzed`
     };
+
+    const resultLabel = data.uncertain ? "UNCERTAIN" : prediction ? "LIKELY REAL" : "LIKELY FAKE";
 
     if (data.uncertain) {
       setResult({
@@ -526,9 +578,11 @@ async function investigate(value = input.value.trim()) {
           : "The model did not find a strong enough signal for a likely label.",
         badge: "UNCERTAIN",
         action: "The model signal was not strong enough to choose TRUE or FAKE. Cross-check the claim with reliable sources.",
+        confidence: data.confidence,
         checks: [
           { ok: false, icon: "fa-circle-question", text: "The model could not confidently choose TRUE or FAKE" },
           wordsCheck,
+          ...(authorCheck ? [authorCheck] : []),
           { ok: false, icon: "fa-link", text: "Verify with independent, trusted sources" }
         ]
       });
@@ -548,10 +602,12 @@ async function investigate(value = input.value.trim()) {
           : "The model leans toward TRUE; this is not independent fact verification.",
         badge: "LIKELY REAL",
         action: "The model result is not independent fact verification. Cross-check important claims with reliable sources.",
+        confidence: data.confidence,
         checks: [
           { ok: true, icon: "fa-check", text: "The model leans toward TRUE" },
           { ok: true, icon: "fa-language", text: isUrl ? "Article text extracted from the supplied URL" : "Writing patterns match the TRUE class in the training data" },
           wordsCheck,
+          ...(authorCheck ? [authorCheck] : []),
           { ok: false, icon: "fa-link", text: "Verify with a trusted source before sharing" }
         ]
       });
@@ -567,10 +623,12 @@ async function investigate(value = input.value.trim()) {
           : "The model leans toward FAKE; this is not independent fact verification.",
         badge: "LIKELY FAKE",
         action: "Check the original publisher and compare the claim with reliable independent sources before sharing.",
+        confidence: data.confidence,
         checks: [
           { ok: false, icon: "fa-circle-exclamation", text: "The model leans toward FAKE" },
           { ok: false, icon: "fa-language", text: isUrl ? "Article text extracted from the supplied URL" : "Writing patterns match the FAKE class in the training data" },
           wordsCheck,
+          ...(authorCheck ? [authorCheck] : []),
           { ok: false, icon: "fa-link", text: "Do not share before checking the source" }
         ]
       });
@@ -597,9 +655,7 @@ async function investigate(value = input.value.trim()) {
         ? "The Flask API could not be reached."
         : error.message || "Unable to connect to the Python backend.",
       badge: "ERROR",
-      action: connectionFailed
-        ? "Start Flask with: py app.py, then open the app at http://127.0.0.1:5000/app/."
-        : "Make sure Flask is running with: py app.py",
+      action: "Make sure Flask is running with: py app.py",
       checks: []
     });
 
@@ -639,7 +695,7 @@ document.querySelectorAll(".method-card").forEach((card) => {
 
       const shareData = {
         title: "Fake News Detector",
-        text: "Check this claim with the Fake News Detector.",
+        text: "Take a look at the Fake News Detector website.",
         url: window.location.href
       };
 
@@ -768,21 +824,21 @@ const translations = {
 
     investigate: "Investigate",
 
-    quickAuthorship: "Analyze text patterns",
-    quickArticles: "Check article URL",
-    quickSources: "Search sources online",
+    quickAuthorship: "Check Authorship",
+    quickArticles: "Check articles",
+    quickSources: "Cross-Reference Sources",
     aiDisclaimer: "AI can make mistakes. Verify important claims with trusted sources.",
     publisher: "Publisher",
     articlePreview: "Extracted text preview",
     openArticle: "Open original article",
     sourceLinks: "Look up this claim",
-    factChecks: "Search fact-check articles",
-    independentSources: "Search web coverage",
+    factChecks: "Search fact checks",
+    independentSources: "Search independent sources",
 
-    methodsTitle: "Start an investigation.",
+    methodsTitle: "Choose your evidence.",
 
     methodsDescription:
-      "Analyze text or an article URL with the model, or share this app. The model provides a signal, not verified evidence.",
+      "Each route starts a different type of verification workflow. Click a card to use it.",
 
     linkTitle: "Check by Link",
     linkDescription: "Paste an article or website URL and inspect its source signals.",
@@ -792,9 +848,9 @@ const translations = {
     searchDescription: "Enter a statement and compare it against your verification workflow.",
     searchAction: "Search claim",
 
-    shareTitle: "Check by Sharing",
-    shareDescription: "Share a claim into the detector workflow from your device.",
-    shareAction: "Share to check"
+    shareTitle: "Share this website",
+    shareDescription: "Send a link to this website to someone.",
+    shareAction: "Share link"
 
   },
 
@@ -818,21 +874,21 @@ const translations = {
 
     investigate: "जांच करें",
 
-    quickAuthorship: "टेक्स्ट पैटर्न जांचें",
-    quickArticles: "आर्टिकल URL जांचें",
-    quickSources: "ऑनलाइन स्रोत खोजें",
+    quickAuthorship: "ऑथरशिप चेक करें",
+    quickArticles: "आर्टिकल जांचें",
+    quickSources: "सोर्स क्रॉस-चेक करें",
     aiDisclaimer: "AI गलतियाँ कर सकता है। ज़रूरी दावों की विश्वसनीय स्रोतों से पुष्टि करें।",
     publisher: "प्रकाशक",
     articlePreview: "निकाला गया टेक्स्ट",
     openArticle: "मूल आर्टिकल खोलें",
     sourceLinks: "इस दावे की और जानकारी देखें",
-    factChecks: "फैक्ट-चेक लेख खोजें",
-    independentSources: "वेब कवरेज खोजें",
+    factChecks: "फैक्ट-चेक खोजें",
+    independentSources: "स्वतंत्र स्रोत खोजें",
 
-    methodsTitle: "जांच शुरू करें।",
+    methodsTitle: "अपने सबूत चुनें।",
 
     methodsDescription:
-      "मॉडल से टेक्स्ट या आर्टिकल URL जांचें, या इस ऐप को शेयर करें। मॉडल का नतीजा संकेत है, verified evidence नहीं।",
+      "हर विकल्प एक अलग verification workflow शुरू करता है। इस्तेमाल करने के लिए कार्ड पर क्लिक करें।",
 
     linkTitle: "लिंक से चेक करें",
     linkDescription: "आर्टिकल या वेबसाइट URL डालकर उसके source signals देखें।",
@@ -842,9 +898,9 @@ const translations = {
     searchDescription: "किसी statement को डालकर verification workflow में जांचें।",
     searchAction: "दावा सर्च करें",
 
-    shareTitle: "शेयर करके चेक करें",
-    shareDescription: "अपने device से किसी claim को detector workflow में शेयर करें।",
-    shareAction: "शेयर करके चेक करें"
+    shareTitle: "वेबसाइट शेयर करें",
+    shareDescription: "किसी को इस वेबसाइट का लिंक भेजें।",
+    shareAction: "लिंक शेयर करें"
 
   }
 
@@ -874,6 +930,7 @@ function applyLanguage(language) {
   $("quickSources").textContent = t.quickSources;
   $("aiDisclaimer").textContent = t.aiDisclaimer;
   $("publisherLabel").textContent = t.publisher;
+  $("authorLabel").textContent = t.authorLabel;
   $("articlePreviewLabel").textContent = t.articlePreview;
   $("articleSourceLink").textContent = t.openArticle;
   $("sourceLinksLabel").textContent = t.sourceLinks;
@@ -1180,35 +1237,12 @@ $("homeLink").addEventListener("click", (event) => {
    QUICK TOOLS
 ========================================================= */
 
-document.querySelectorAll(".quick-tool").forEach((tool) => {
+document.querySelectorAll(".quick-tools > span").forEach((tool) => {
+
   tool.addEventListener("click", () => {
-    const action = tool.dataset.tool;
-
-    if (action === "text") {
-      input.placeholder = "Enter a claim or paste news text to analyze...";
-      input.focus();
-      input.scrollIntoView({ behavior: "smooth", block: "center" });
-      return;
-    }
-
-    if (action === "article") {
-      input.placeholder = "Paste a public article URL to analyze...";
-      input.focus();
-      input.scrollIntoView({ behavior: "smooth", block: "center" });
-      return;
-    }
-
-    const query = input.value.trim();
-    if (!query) {
-      showToast("Enter a claim first, then search for it online.");
-      input.focus();
-      return;
-    }
-
-    const searchUrl = new URL("https://www.google.com/search");
-    searchUrl.searchParams.set("q", query.slice(0, 200));
-    window.open(searchUrl.href, "_blank", "noopener,noreferrer");
+    showToast("This investigation route will be connected in the next backend stage.");
   });
+
 });
 
 
