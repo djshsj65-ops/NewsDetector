@@ -2,7 +2,7 @@
 setlocal
 cd /d "%~dp0"
 
-curl.exe --silent --show-error --fail --max-time 2 "http://127.0.0.1:5000/health" | findstr /C:"news-detector-api" >nul
+curl.exe --silent --fail --max-time 2 "http://127.0.0.1:5000/health" | findstr /C:"news-detector-api" >nul
 if not errorlevel 1 (
     echo Fake News Detector is already running at http://127.0.0.1:5000/app/
     start "" "http://127.0.0.1:5000/app/"
@@ -18,19 +18,31 @@ if defined PORT_PID (
     exit /b 1
 )
 
-where py >nul 2>nul
-if not errorlevel 1 (
-    set "PYTHON=py -3"
-) else (
-    set "PYTHON=python"
+if not exist ".venv\Scripts\python.exe" (
+    where py >nul 2>nul
+    if not errorlevel 1 (
+        py -3 -m venv .venv
+    ) else (
+        python -m venv .venv
+    )
+    if errorlevel 1 goto setup_failed
 )
 
-echo Starting Fake News Detector with %PYTHON%...
-echo When Flask reports that it is running, open http://127.0.0.1:5000/app/
-echo Keep this window open while using the app.
-%PYTHON% app.py
+".venv\Scripts\python.exe" -c "import flask, joblib, pandas, sklearn" >nul 2>nul
 if errorlevel 1 (
-    echo Flask stopped with an error. Check the message above before trying again.
-    echo Install the project dependencies with: py -m pip install -r requirements.txt
-    pause
+    ".venv\Scripts\python.exe" -m pip install -r requirements.txt
+    if errorlevel 1 goto setup_failed
 )
+
+echo Starting Fake News Detector...
+echo Open http://127.0.0.1:5000/app/ when Flask reports that it is running.
+echo Keep this command window open while using the app.
+".venv\Scripts\python.exe" app.py
+if errorlevel 1 goto setup_failed
+exit /b 0
+
+:setup_failed
+echo.
+echo Setup or Flask startup failed. Read the error shown above.
+pause
+exit /b 1

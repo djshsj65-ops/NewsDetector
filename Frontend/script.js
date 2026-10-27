@@ -438,10 +438,10 @@ function setResult({
   subtitle,
   badge,
   action,
-  checks,
-  confidence = null
+ checks,
+ confidence = null
 }) {
-  resultPopup.className = "result-popup" + (state ? " " + state : "");
+ resultPopup.className = "result-popup" + (state ? " " + state : "");
   resultIconI.className = "fa-solid " + icon;
 
   resultTitle.textContent = title;
@@ -531,6 +531,10 @@ async function investigate(value = input.value.trim()) {
       throw new Error(data.error || "The ML backend returned an error.");
     }
 
+    if (!Number.isFinite(data.confidence) || data.confidence < 0 || data.confidence > 1) {
+      throw new Error("The backend returned an invalid confidence score.");
+    }
+
     renderNewsEvidence(data.evidence);
 
     let authorCheck = null;
@@ -582,7 +586,6 @@ async function investigate(value = input.value.trim()) {
       icon: "fa-file-lines",
       text: `${words} words analyzed`
     };
-
     if (data.uncertain) {
       setResult({
         state: "uncertain",
@@ -839,7 +842,7 @@ const translations = {
 
     investigate: "Investigate",
 
-    quickAuthorship: "Check Authorship",
+    quickAuthorship: "Find listed author",
     quickArticles: "Check articles",
     quickSources: "Cross-Reference Sources",
     aiDisclaimer: "AI can make mistakes. Verify important claims with trusted sources.",
@@ -849,12 +852,13 @@ const translations = {
     openArticle: "Open original article",
     sourceLinks: "Look up this claim",
     factChecks: "Search fact checks",
-    independentSources: "Search independent sources",
+    independentSources: "Search news coverage",
+    authorLabel: "Listed author",
 
-    methodsTitle: "Choose your evidence.",
+    methodsTitle: "What do you want to check?",
 
     methodsDescription:
-      "Each route starts a different type of verification workflow. Click a card to use it.",
+      "Choose a link, claim, or sharing option.",
 
     linkTitle: "Check by Link",
     linkDescription: "Paste an article or website URL and inspect its source signals.",
@@ -890,7 +894,7 @@ const translations = {
 
     investigate: "जांच करें",
 
-    quickAuthorship: "ऑथरशिप चेक करें",
+    quickAuthorship: "लेख में लेखक देखें",
     quickArticles: "आर्टिकल जांचें",
     quickSources: "सोर्स क्रॉस-चेक करें",
     aiDisclaimer: "AI गलतियाँ कर सकता है। ज़रूरी दावों की विश्वसनीय स्रोतों से पुष्टि करें।",
@@ -900,12 +904,13 @@ const translations = {
     openArticle: "मूल आर्टिकल खोलें",
     sourceLinks: "इस दावे की और जानकारी देखें",
     factChecks: "फैक्ट-चेक खोजें",
-    independentSources: "स्वतंत्र स्रोत खोजें",
+    independentSources: "खबरों में खोजें",
+    authorLabel: "लेख में दिया लेखक",
 
-    methodsTitle: "अपने सबूत चुनें।",
+    methodsTitle: "आप क्या जांचना चाहते हैं?",
 
     methodsDescription:
-      "हर विकल्प एक अलग verification workflow शुरू करता है। इस्तेमाल करने के लिए कार्ड पर क्लिक करें।",
+      "लिंक, दावा या शेयर करने का विकल्प चुनें।",
 
     linkTitle: "लिंक से चेक करें",
     linkDescription: "आर्टिकल या वेबसाइट URL डालकर उसके source signals देखें।",

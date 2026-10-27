@@ -10,18 +10,21 @@
 - `train_model.py` — dataset evaluation and model artifact training
 - `make_dataset.py` — cleans and prepares the balanced training dataset
 
-## Run
-1. Install the Python dependencies with `py -m pip install -r requirements.txt`.
-2. Double-click `run.bat`, or start Flask from this folder with `py app.py`.
-   The launcher reuses an existing detector server and warns if another process
-   occupies port 5000.
-3. Keep the command window open while using the app.
-4. Open `http://127.0.0.1:5000/app/` in your browser. Do not open `index.html`
+## Run on Windows
+1. Double-click `run.bat` in the `Frontend` folder.
+2. On the first run, it creates a local `.venv` and installs `requirements.txt`.
+3. Open `http://127.0.0.1:5000/app/` in your browser. Do not open `index.html`
    directly as a file; the Flask server must be running for API requests.
-5. Run the backend regression tests from this folder with
+4. Keep the command window open while using the website.
+5. Run backend regression tests from this folder with
    `py -m unittest discover -s tests`.
-6. To check that Flask is running, open `http://127.0.0.1:5000/health`.
-   A healthy server returns `{"status":"ok","service":"news-detector-api"}`.
+6. To check the Flask server, open `http://127.0.0.1:5000/health`. A healthy
+   server returns `{"status":"ok","service":"news-detector-api"}`.
+
+Flask serves the website and API from the same local address. The launcher uses
+an isolated Python environment to avoid conflicts with global Python packages,
+reuses an existing detector server, and warns if another process occupies port
+5000.
 
 ## Related news search (optional)
 The result can show up to five related NewsAPI articles. These are related

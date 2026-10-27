@@ -2001,6 +2001,10 @@ body.dark .avatar {
   color: var(--cyan);
 }
 
+.confidence-card.hidden {
+  display: none;
+}
+
 .article-details {
   margin: 14px 0;
   padding: 12px 14px;

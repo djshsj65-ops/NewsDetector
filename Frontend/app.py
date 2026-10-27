@@ -244,7 +244,7 @@ def search_related_news(query):
         return {
             "available": False,
             "provider": "NewsAPI",
-            "message": "Set the NEWSAPI_KEY environment variable to load related news articles.",
+            "message": "Related news search is unavailable right now. You can still check the links below.",
             "articles": [],
         }
 
