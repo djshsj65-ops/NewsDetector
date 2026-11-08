@@ -144,6 +144,11 @@
             <button class="clear-search" id="clearSearch" aria-label="Clear" type="button">
               <i class="fa-solid fa-xmark"></i>
             </button>
+            <button class="image-upload-btn" id="imageUploadBtn" aria-label="Investigate an image"
+              title="Investigate an image" type="button">
+              <i class="fa-solid fa-image"></i>
+            </button>
+            <input id="imageInput" type="file" accept="image/png,image/jpeg,image/webp,image/bmp" hidden />
           </div>
 
           <button class="investigate-btn" id="investigateBtn" type="button">
@@ -276,11 +281,11 @@
 
         </div>
 
-        <section class="confidence-card hidden" id="confidenceCard" aria-label="Model estimate">
+        <section class="confidence-card hidden" id="confidenceCard" aria-label="Model confidence">
           <div class="confidence-heading">
             <div>
-              <span class="confidence-label">MODEL ESTIMATE</span>
-              <p>How strongly the text matches patterns in its training examples</p>
+              <span class="confidence-label">MODEL CONFIDENCE</span>
+              <p>How sure the model is about this label</p>
             </div>
             <strong id="confidenceValue">--%</strong>
           </div>
@@ -288,14 +293,29 @@
             class="confidence-track"
             id="confidenceTrack"
             role="progressbar"
-            aria-label="Model estimate"
+            aria-label="Model confidence"
             aria-valuemin="0"
             aria-valuemax="100"
             aria-valuenow="0"
           >
             <span id="confidenceBar"></span>
           </div>
-          <small>This score describes the model's label, not the chance that the claim is true.</small>
+          <small id="modelAccuracyNote">Model accuracy on unseen test headlines is shown after a check.</small>
+        </section>
+
+        <section class="evidence-results why-card hidden" id="whyCard" aria-label="Why the model chose this label">
+          <div class="evidence-heading">
+            <h3>Why the model said this</h3>
+            <span>Words with the most influence</span>
+          </div>
+          <div class="why-row">
+            <span class="why-label fake">Toward FAKE</span>
+            <div class="why-words" id="whyFake"></div>
+          </div>
+          <div class="why-row">
+            <span class="why-label real">Toward TRUE</span>
+            <div class="why-words" id="whyTrue"></div>
+          </div>
         </section>
 
         <section class="article-details hidden" id="articleDetails" aria-label="Fetched article details">
@@ -312,6 +332,15 @@
             article</a>
           <span class="article-preview-label" id="articlePreviewLabel">Extracted text preview</span>
           <p id="articlePreview"></p>
+        </section>
+
+        <section class="evidence-results fact-checks hidden" id="factChecks" aria-label="Fact-checks">
+          <div class="evidence-heading">
+            <h3>Fact-checks</h3>
+            <span>AltNews, BOOM, Factly, Vishvas News, Newschecker, Fact Crescendo</span>
+          </div>
+          <p id="factCheckStatus"></p>
+          <ul id="factCheckList"></ul>
         </section>
 
         <section class="evidence-results hidden" id="newsEvidence" aria-label="Related news coverage">
@@ -337,6 +366,12 @@
           <span id="sourceLinksLabel">Look up this claim</span>
           <a id="factCheckLink" target="_blank" rel="noopener noreferrer">Search fact checks</a>
           <a id="independentSourcesLink" target="_blank" rel="noopener noreferrer">Search independent sources</a>
+        </div>
+
+        <div class="source-links hidden" id="imageSearchLinks">
+          <span>Check where this image appeared before (upload the same image there)</span>
+          <a href="https://lens.google.com/" target="_blank" rel="noopener noreferrer">Google Lens</a>
+          <a href="https://tineye.com/" target="_blank" rel="noopener noreferrer">TinEye</a>
         </div>
 
       </div>

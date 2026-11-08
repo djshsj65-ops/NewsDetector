@@ -27,6 +27,12 @@ const actionText = $("actionText");
 const newsEvidence = $("newsEvidence");
 const evidenceStatus = $("evidenceStatus");
 const evidenceList = $("evidenceList");
+const factChecks = $("factChecks");
+const whyCard = $("whyCard");
+const factCheckStatus = $("factCheckStatus");
+const factCheckList = $("factCheckList");
+const imageInput = $("imageInput");
+const imageSearchLinks = $("imageSearchLinks");
 
 const authModal = $("authModal");
 const authSwitchLink = $("authSwitchLink");
@@ -416,10 +422,40 @@ function resetResultExtras() {
   confidenceCard.classList.add("hidden");
   articleDetails.classList.add("hidden");
   resultSources.classList.add("hidden");
+  factChecks.classList.add("hidden");
+  factCheckList.innerHTML = "";
+  whyCard.classList.add("hidden");
   newsEvidence.classList.add("hidden");
   newsEvidence.classList.remove("empty");
   evidenceList.innerHTML = "";
+  imageSearchLinks.classList.add("hidden");
 }
+
+function renderFactChecks(result) {
+  if (!result || typeof result !== "object" || !result.available) return;
+
+  const articles = Array.isArray(result.articles) ? result.articles : [];
+  factCheckList.innerHTML = articles
+    .map((article) => {
+      const safeUrl = safeHttpUrl(article.url);
+      if (!safeUrl) return "";
+
+      return `
+        <li>
+          <a href="${escapeHTML(safeUrl)}" target="_blank" rel="noopener noreferrer">
+            ${escapeHTML(article.title || "Fact-check article")}
+          </a>
+          <span>${escapeHTML(article.publisher || "Fact-check site")} ${escapeHTML(article.published_at || "")}</span>
+        </li>
+      `;
+    })
+    .join("");
+
+  factChecks.classList.toggle("found", factCheckList.childElementCount > 0);
+  factCheckStatus.textContent = result.message || "";
+  factChecks.classList.remove("hidden");
+}
+
 
 function renderNewsEvidence(evidence) {
   if (!evidence || typeof evidence !== "object") return;
@@ -491,6 +527,30 @@ function setResult({
 }
 
 
+function renderInfluentialWords(words) {
+  const fake = Array.isArray(words?.fake) ? words.fake : [];
+  const real = Array.isArray(words?.true) ? words.true : [];
+  if (!fake.length && !real.length) return;
+
+  const chips = (list) => list.length
+    ? list.map((word) => `<span class="why-chip">${escapeHTML(word)}</span>`).join("")
+    : `<span class="why-none">none</span>`;
+
+  $("whyFake").innerHTML = chips(fake);
+  $("whyTrue").innerHTML = chips(real);
+  whyCard.classList.remove("hidden");
+}
+
+
+function setModelAccuracy(metrics) {
+  if (!metrics || !Number.isFinite(metrics.accuracy) || !Number.isFinite(metrics.test_rows)) return;
+
+  $("modelAccuracyNote").textContent =
+    `Model accuracy: ${(metrics.accuracy * 100).toFixed(1)}% on ` +
+    `${metrics.test_rows.toLocaleString()} unseen test headlines.`;
+}
+
+
 function setConfidence(confidence) {
   if (!Number.isFinite(confidence) || confidence < 0 || confidence > 1) {
     confidenceCard.classList.add("hidden");
@@ -498,7 +558,8 @@ function setConfidence(confidence) {
   }
 
   const percentage = Math.round(confidence * 100);
-  confidenceValue.textContent = `${percentage}%`;
+  const band = percentage >= 85 ? "High" : percentage >= 65 ? "Medium" : "Low";
+  confidenceValue.textContent = `${percentage}% · ${band}`;
   confidenceBar.style.width = `${percentage}%`;
   confidenceTrack.setAttribute("aria-valuenow", String(percentage));
   confidenceCard.classList.remove("hidden");
@@ -569,6 +630,7 @@ async function investigate(value = input.value.trim()) {
       throw new Error("The backend returned an invalid confidence score.");
     }
 
+    renderFactChecks(data.fact_checks);
     renderNewsEvidence(data.evidence);
 
     let authorCheck = null;
@@ -620,19 +682,28 @@ async function investigate(value = input.value.trim()) {
       icon: "fa-file-lines",
       text: `${words} words analyzed`
     };
+    const unfamiliarWords = data.uncertain_reason === "unfamiliar_words";
+    const knownWordsText = `The model knows ${data.known_words} of ${data.content_words} key words in this text`;
+    setModelAccuracy(data.model_metrics);
+    renderInfluentialWords(data.influential_words);
+
     if (data.uncertain) {
       setResult({
         state: "uncertain",
         icon: "fa-circle-question",
         title: "UNCERTAIN",
-        subtitle: isUrl
-          ? "The article text did not produce a strong enough signal for a likely label."
-          : "The model did not find a strong enough signal for a likely label.",
+        subtitle: unfamiliarWords
+          ? "Many words in this text never appeared in the model's training news, so it cannot judge it reliably."
+          : isUrl
+            ? "The article text did not produce a strong enough signal for a likely label."
+            : "The model did not find a strong enough signal for a likely label.",
         badge: "UNCERTAIN",
         action: "The model compares word and phrase patterns with its training examples; it does not verify facts. Try the full claim and cross-check trusted sources.",
-        confidence: data.confidence,
+        confidence: unfamiliarWords ? null : data.confidence,
         checks: [
-          { ok: false, icon: "fa-circle-question", text: "The model could not confidently choose TRUE or FAKE" },
+          unfamiliarWords
+            ? { ok: false, icon: "fa-book", text: knownWordsText }
+            : { ok: false, icon: "fa-circle-question", text: "The model could not confidently choose TRUE or FAKE" },
           wordsCheck,
           ...(authorCheck ? [authorCheck] : []),
           { ok: false, icon: "fa-link", text: "Verify with independent, trusted sources" }
@@ -726,6 +797,83 @@ async function investigate(value = input.value.trim()) {
 ========================================================= */
 
 $("investigateBtn").addEventListener("click", () => investigate());
+
+
+/* =========================================================
+   IMAGE INVESTIGATION (OCR text + reverse image search links)
+========================================================= */
+
+async function investigateImage(file) {
+  resetResultExtras();
+
+  setResult({
+    state: "",
+    icon: "fa-spinner fa-spin",
+    title: "Reading image...",
+    subtitle: "Extracting text from the image. The first image can take a few seconds.",
+    badge: "CHECKING",
+    action: "One moment...",
+    checks: []
+  });
+
+  openResult();
+
+  try {
+    const formData = new FormData();
+    formData.append("image", file);
+
+    const response = await fetch("/extract-image-text", {
+      method: "POST",
+      body: formData
+    });
+
+    let data;
+
+    try {
+      data = await response.json();
+    } catch {
+      throw new Error("The Flask server returned an invalid response.");
+    }
+
+    if (!response.ok || typeof data.text !== "string") {
+      throw new Error(data.error || "Text could not be read from the image.");
+    }
+
+    await investigate(data.text);
+
+    if (resultBadge.textContent !== "ERROR") {
+      imageSearchLinks.classList.remove("hidden");
+    }
+
+  } catch (error) {
+
+    console.error("Image investigation error:", error);
+    resetResultExtras();
+    imageSearchLinks.classList.remove("hidden");
+
+    setResult({
+      state: "fake",
+      icon: "fa-circle-exclamation",
+      title: "ERROR",
+      subtitle: error instanceof TypeError && error.message === "Failed to fetch"
+        ? "The Flask API could not be reached."
+        : error.message,
+      badge: "ERROR",
+      action: "Try a clearer image with readable text, or check where the image appeared before using the links below.",
+      checks: []
+    });
+
+  }
+}
+
+
+$("imageUploadBtn").addEventListener("click", () => imageInput.click());
+
+imageInput.addEventListener("change", () => {
+  const file = imageInput.files[0];
+  imageInput.value = "";
+  if (file) investigateImage(file);
+});
 
 
 input.addEventListener("keydown", (event) => {
@@ -1094,7 +1242,7 @@ function renderHistory(history) {
       ${history.map((item) => {
 
     const isReal = item.prediction === "TRUE" || item.prediction === "LIKELY REAL";
-    const isFake = item.prediction === "FAKE" || item.prediction === "LIKELY FAKE";
+    const isFake = ["FAKE", "LIKELY FAKE", "FACT-CHECK FOUND"].includes(item.prediction);
     const className = isReal ? "real" : isFake ? "fake" : "uncertain";
     const evidenceLinks = (Array.isArray(item.evidence) ? item.evidence : [])
       .map((article) => {

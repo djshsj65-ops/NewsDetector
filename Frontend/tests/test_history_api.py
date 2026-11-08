@@ -1,3 +1,4 @@
+import io
 import json
 import sqlite3
 import tempfile
@@ -11,6 +12,8 @@ import numpy as np
 import app as detector
 import database
 
+search_fact_checks = detector.search_fact_checks
+
 
 class HistoryApiTests(unittest.TestCase):
     @classmethod
@@ -23,9 +26,17 @@ class HistoryApiTests(unittest.TestCase):
         )
         cls.database_path_patch.start()
         database.initialize_database()
+        # Keep prediction tests offline; fact-check search is tested separately.
+        cls.fact_check_patch = patch.object(
+            detector,
+            "search_fact_checks",
+            return_value={"available": False, "message": "Not searched", "articles": []},
+        )
+        cls.fact_check_patch.start()
 
     @classmethod
     def tearDownClass(cls):
+        cls.fact_check_patch.stop()
         cls.database_path_patch.stop()
         cls.temp_dir.cleanup()
 
@@ -114,7 +125,7 @@ class HistoryApiTests(unittest.TestCase):
             ):
                 uncertain = self.client.post(
                     "/predict",
-                    json={"text": "A sample short claim.", "is_url": False},
+                    json={"text": "Supreme Court issues notice to Centre on new railway project", "is_url": False},
                 ).get_json()
             with patch.object(
                 detector.model,
@@ -123,11 +134,68 @@ class HistoryApiTests(unittest.TestCase):
             ):
                 classified = self.client.post(
                     "/predict",
-                    json={"text": "A sample short claim.", "is_url": False},
+                    json={"text": "Supreme Court issues notice to Centre on new railway project", "is_url": False},
                 ).get_json()
 
         self.assertTrue(uncertain["uncertain"])
         self.assertFalse(classified["uncertain"])
+
+    def test_mostly_unknown_words_are_marked_uncertain(self):
+        with patch.object(detector, "search_related_news", return_value={"articles": []}):
+            result = self.client.post(
+                "/predict",
+                json={"text": "zorblax quintrel flimbo landed in delhi", "is_url": False},
+            ).get_json()
+
+        self.assertTrue(result["uncertain"])
+        self.assertEqual(result["uncertain_reason"], "unfamiliar_words")
+        self.assertLess(result["known_words"] / result["content_words"], 0.6)
+        self.assertEqual(result["verdict"], "UNCERTAIN")
+
+    def test_fact_checks_are_evidence_not_the_verdict(self):
+        fact_checks = {
+            "available": True,
+            "message": "Fact-checkers have written about similar claims.",
+            "articles": [{
+                "title": "No, COVID vaccines do not contain microchips",
+                "publisher": "BOOM Fact Check",
+                "published_at": "12 Feb 2021",
+                "url": "https://example.org/fact-check",
+            }],
+        }
+        with patch.object(detector, "search_related_news", return_value={"articles": []}):
+            with patch.object(detector, "search_fact_checks", return_value=fact_checks):
+                result = self.client.post(
+                    "/predict",
+                    json={"text": "covid vaccine contains microchip", "is_url": False},
+                ).get_json()
+
+        self.assertEqual(result["fact_checks"], fact_checks)
+        self.assertIn(result["verdict"], {"LIKELY REAL", "LIKELY FAKE", "UNCERTAIN"})
+        self.assertEqual(self.client.get("/history").get_json()[0]["prediction"], result["verdict"])
+
+    def test_prediction_explains_influential_words(self):
+        with patch.object(detector, "search_related_news", return_value={"articles": []}):
+            result = self.client.post(
+                "/predict",
+                json={"text": "Supreme Court issues notice to Centre on new railway project", "is_url": False},
+            ).get_json()
+
+        words = result["influential_words"]
+        self.assertEqual(set(words), {"true", "fake"})
+        self.assertTrue(words["true"] or words["fake"])
+        self.assertLessEqual(len(words["true"]), 4)
+        self.assertLessEqual(len(words["fake"]), 4)
+
+    def test_prediction_includes_measured_model_accuracy(self):
+        with patch.object(detector, "search_related_news", return_value={"articles": []}):
+            with patch.object(detector, "MODEL_METRICS", {"accuracy": 0.9475, "test_rows": 2000}):
+                result = self.client.post(
+                    "/predict",
+                    json={"text": "Government announces new railway project in Delhi", "is_url": False},
+                ).get_json()
+
+        self.assertEqual(result["model_metrics"], {"accuracy": 0.9475, "test_rows": 2000})
 
     def test_empty_prediction_input_is_rejected(self):
         response = self.client.post("/predict", json={"text": " ", "is_url": False})
@@ -202,6 +270,61 @@ class HistoryApiTests(unittest.TestCase):
         self.assertTrue(result["available"])
         self.assertEqual(len(result["articles"]), 5)
         self.assertIn("not a fact-check verdict", result["message"])
+
+    def test_image_upload_without_file_is_rejected(self):
+        response = self.client.post("/extract-image-text", data={})
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("no image", response.get_json()["error"].lower())
+
+    def test_image_text_is_extracted_with_ocr(self):
+        class FakeOcr:
+            def __call__(self, image_bytes):
+                return [[None, "Drinking hot water", 0.9], [None, "kills coronavirus", 0.9]], None
+
+        with patch.object(detector, "get_ocr_engine", return_value=FakeOcr()):
+            response = self.client.post(
+                "/extract-image-text",
+                data={"image": (io.BytesIO(b"fake image bytes"), "claim.png", "image/png")},
+                content_type="multipart/form-data",
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json()["text"], "Drinking hot water kills coronavirus")
+
+    def test_fact_check_search_keeps_only_matching_results(self):
+        rss = b"""<?xml version="1.0"?><rss><channel>
+            <item><title>No, COVID vaccines do not contain microchips | BOOM - BOOM Fact Check</title>
+                <link>https://news.google.com/articles/1</link>
+                <pubDate>Fri, 12 Feb 2021 08:00:00 GMT</pubDate>
+                <source url="https://www.boomlive.in">BOOM Fact Check</source></item>
+            <item><title>Unrelated parody tweet about IT raids - Alt News</title>
+                <link>https://news.google.com/articles/2</link>
+                <source url="https://www.altnews.in">Alt News</source></item>
+        </channel></rss>"""
+
+        class FakeResponse(io.BytesIO):
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                return False
+
+        with patch.object(detector, "urlopen", return_value=FakeResponse(rss)):
+            result = search_fact_checks("covid vaccine contains microchip")
+
+        self.assertTrue(result["available"])
+        self.assertEqual(len(result["articles"]), 1)
+        self.assertEqual(
+            result["articles"][0]["title"], "No, COVID vaccines do not contain microchips"
+        )
+        self.assertEqual(result["articles"][0]["publisher"], "BOOM Fact Check")
+
+    def test_fact_check_search_reports_network_failure(self):
+        with patch.object(detector, "urlopen", side_effect=OSError("offline")):
+            result = search_fact_checks("covid vaccine contains microchip")
+
+        self.assertFalse(result["available"])
+        self.assertEqual(result["articles"], [])
 
     def test_private_article_url_is_rejected(self):
         response = self.client.post(

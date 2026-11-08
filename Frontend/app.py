@@ -6,6 +6,7 @@ import re
 import socket
 import sqlite3
 import unicodedata
+import xml.etree.ElementTree as ET
 from html.parser import HTMLParser
 from pathlib import Path
 from urllib.error import HTTPError, URLError
@@ -14,6 +15,7 @@ from urllib.request import HTTPRedirectHandler, Request, build_opener, urlopen
 
 import joblib
 from flask import Flask, jsonify, request, send_from_directory
+from sklearn.feature_extraction.text import ENGLISH_STOP_WORDS
 from werkzeug.exceptions import RequestEntityTooLarge
 
 from database import (
@@ -22,9 +24,10 @@ from database import (
     initialize_database,
     save_investigation,
 )
+from text_cleaning import clean_claim_text
 
 app = Flask(__name__)
-app.config["MAX_CONTENT_LENGTH"] = 128_000
+app.config["MAX_CONTENT_LENGTH"] = 5_000_000
 
 FRONTEND_DIR = Path(__file__).resolve().parent
 model = joblib.load(FRONTEND_DIR / "model.pkl")
@@ -33,7 +36,58 @@ vectorizer = joblib.load(FRONTEND_DIR / "vectorizer.pkl")
 
 MAX_PAGE_BYTES = 1_000_000
 MAX_INPUT_CHARS = 20_000
+MAX_IMAGE_BYTES = 5_000_000
+ALLOWED_IMAGE_TYPES = {"image/png", "image/jpeg", "image/webp", "image/bmp"}
 UNCERTAIN_MARGIN_THRESHOLD = math.log(1.25)
+# Claims where the model has seen too few of the words are marked uncertain.
+# On the 1,948-headline holdout this flags about 7% of rows, where accuracy
+# drops from about 81% to 75%.
+MIN_KNOWN_WORD_SHARE = 0.5
+MIN_KNOWN_WORDS = 2
+_analyzer = vectorizer.build_analyzer()
+
+
+def load_model_metrics():
+    """Holdout metrics written by train_model.py, or None if not generated yet."""
+    try:
+        return json.loads((FRONTEND_DIR / "model_metrics.json").read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+
+
+MODEL_METRICS = load_model_metrics()
+
+
+_feature_names = vectorizer.get_feature_names_out()
+
+
+def influential_words(text_vector, limit=4):
+    """Words and phrases that pushed this text most toward TRUE and toward FAKE.
+
+    Each feature's push is its TF-IDF weight in the text times the model's
+    coefficient (positive = TRUE, negative = FAKE).
+    """
+    row = text_vector.tocoo()
+    pushes = [
+        (str(_feature_names[index]), float(weight * model.coef_[0][index]))
+        for index, weight in zip(row.col, row.data)
+    ]
+    toward_true = sorted((p for p in pushes if p[1] > 0), key=lambda p: -p[1])[:limit]
+    toward_fake = sorted((p for p in pushes if p[1] < 0), key=lambda p: p[1])[:limit]
+    return {
+        "true": [word for word, _ in toward_true],
+        "fake": [word for word, _ in toward_fake],
+    }
+
+
+def vocabulary_coverage(model_text):
+    """Return (known, total) distinct content words the vectorizer has seen in training."""
+    words = list(dict.fromkeys(
+        token
+        for token in _analyzer(model_text)
+        if " " not in token and token not in ENGLISH_STOP_WORDS
+    ))
+    return sum(word in vectorizer.vocabulary_ for word in words), max(len(words), 1)
 NEWSAPI_KEY = os.environ.get("NEWSAPI_KEY", "").strip()
 
 
@@ -323,6 +377,114 @@ def search_related_news(query):
     }
 
 
+FACT_CHECK_SITES = [
+    "altnews.in",
+    "boomlive.in",
+    "factly.in",
+    "vishvasnews.com",
+    "newschecker.in",
+    "factcrescendo.com",
+]
+STOP_WORDS = {
+    "the", "and", "for", "are", "was", "were", "has", "have", "had", "this", "that",
+    "with", "from", "into", "says", "said", "will", "not", "but", "its", "his", "her",
+    "their", "they", "you", "your", "our", "who", "what", "when", "where", "how", "why",
+    "all", "any", "can", "did", "does", "about", "after", "before", "over", "than",
+    "news", "viral", "claim", "fact", "check", "share", "everyone",
+    # Common in news and forwards, so they make unrelated articles look similar.
+    "government", "day", "days", "today", "tomorrow", "yesterday", "people",
+    "india", "indian", "video", "whatsapp", "message", "forwarded", "new",
+}
+
+
+def claim_keywords(text):
+    """Lower-case content words, with a simple plural trim, in their original order."""
+    words = re.findall(r"[a-z0-9]+", unicodedata.normalize("NFKC", text).casefold())
+    keywords = []
+    for word in words:
+        too_short = len(word) < 3 and not (len(word) == 2 and any(ch.isdigit() for ch in word))
+        if too_short or word in STOP_WORDS:
+            continue
+        if len(word) > 4 and word.endswith("s"):
+            word = word[:-1]
+        if word not in keywords:
+            keywords.append(word)
+    return keywords
+
+
+def search_fact_checks(query):
+    """Find fact-check articles about similar claims on Indian fact-checking sites.
+
+    Uses the public Google News RSS search (no API key). Results are leads to
+    published fact-checks, not a verdict on the user's claim.
+    """
+    keywords = claim_keywords(query)[:10]
+    if len(keywords) < 2:
+        return {
+            "available": False,
+            "message": "The claim is too short to search for fact-checks.",
+            "articles": [],
+        }
+
+    sites = " OR ".join(f"site:{site}" for site in FACT_CHECK_SITES)
+    params = urlencode({
+        "q": f"{' '.join(keywords)} ({sites})",
+        "hl": "en-IN",
+        "gl": "IN",
+        "ceid": "IN:en",
+    })
+    request = Request(
+        f"https://news.google.com/rss/search?{params}",
+        headers={"User-Agent": "NewsDetector/1.0"},
+    )
+
+    try:
+        with urlopen(request, timeout=6) as response:
+            root = ET.fromstring(response.read(1_000_000))
+    except (HTTPError, URLError, TimeoutError, socket.timeout, OSError, ET.ParseError):
+        app.logger.exception("Could not search fact-check sites")
+        return {
+            "available": False,
+            "message": "Fact-check search could not be reached right now.",
+            "articles": [],
+        }
+
+    # Keep only results that share enough keywords with the claim: two, or three
+    # for long texts (articles, image text) where two shared words are common.
+    needed_matches = 3 if len(keywords) >= 8 else 2
+    articles = []
+    for item in root.findall("./channel/item"):
+        title = (item.findtext("title") or "").strip()
+        publisher = (item.findtext("source") or "").strip()
+        url = (item.findtext("link") or "").strip()
+        if publisher and title.endswith(f" - {publisher}"):
+            title = title[: -len(f" - {publisher}")].strip()
+        title = re.sub(r"\s+\|\s+[^|]{1,30}$", "", title)
+        if not title or urlparse(url).scheme not in {"http", "https"}:
+            continue
+        if len(set(keywords) & set(claim_keywords(title))) < needed_matches:
+            continue
+        articles.append({
+            "title": title[:300],
+            "publisher": (publisher or "Fact-check site")[:120],
+            "published_at": (item.findtext("pubDate") or "")[5:16],
+            "url": url,
+        })
+        if len(articles) == 5:
+            break
+
+    return {
+        "available": True,
+        "message": (
+            "Fact-checkers have written about this topic. Open them to see whether they "
+            "confirm or debunk this exact claim."
+            if articles
+            else "No matching fact-check found. This does not mean the claim is true."
+        ),
+        "articles": articles,
+    }
+
+
 @app.route("/")
 def home():
     return send_from_directory(app.root_path, "index.html")
@@ -398,23 +560,35 @@ def predict():
         else:
             news_text = supplied_text
 
-        model_text = re.sub(
-            r"\s+",
-            " ",
-            unicodedata.normalize("NFKC", news_text),
-        ).strip().casefold()
+        model_text = clean_claim_text(news_text)
         text_vector = vectorizer.transform([model_text])
 
         prediction = model.predict(text_vector)[0]
         margin = abs(float(model.decision_function(text_vector)[0]))
         probabilities = confidence_model.predict_proba(text_vector)[0]
         prediction_class_index = list(confidence_model.classes_).index(prediction)
+        known_words, content_words = vocabulary_coverage(model_text)
+        unfamiliar = (
+            known_words < MIN_KNOWN_WORDS
+            or known_words / content_words < MIN_KNOWN_WORD_SHARE
+        )
 
         result = {
             "prediction": bool(prediction == 1),
-            "uncertain": margin < UNCERTAIN_MARGIN_THRESHOLD,
+            "uncertain": unfamiliar or margin < UNCERTAIN_MARGIN_THRESHOLD,
+            "uncertain_reason": (
+                "unfamiliar_words"
+                if unfamiliar
+                else "weak_signal"
+                if margin < UNCERTAIN_MARGIN_THRESHOLD
+                else None
+            ),
+            "known_words": known_words,
+            "content_words": content_words,
+            "influential_words": influential_words(text_vector),
             "confidence": float(probabilities[prediction_class_index]),
             "word_count": len(news_text.split()),
+            "model_metrics": MODEL_METRICS,
         }
 
         if article_details:
@@ -428,7 +602,10 @@ def predict():
 
         search_query = article_details["title"] if article_details else news_text
         result["evidence"] = search_related_news(search_query)
+        result["fact_checks"] = search_fact_checks(search_query)
 
+        # Fact-checks are shown as evidence only. Fact-checkers also cover hoaxes
+        # around true events (Chandrayaan, G20...), so a match does not mean false.
         result_label = (
             "UNCERTAIN"
             if result["uncertain"]
@@ -436,6 +613,7 @@ def predict():
             if result["prediction"]
             else "LIKELY FAKE"
         )
+        result["verdict"] = result_label
         result["history_id"] = save_investigation(
             input_text=supplied_text,
             prediction=result_label,
@@ -458,7 +636,8 @@ def predict():
 def request_too_large(error):
     app.logger.warning("Rejected oversized request: %s", error)
     return jsonify({
-        "error": f"Request is too large. Keep input at or below {MAX_INPUT_CHARS} characters."
+        "error": "Request is too large. Keep images under 5 MB and text under "
+        f"{MAX_INPUT_CHARS} characters."
     }), 413
 
 
@@ -468,6 +647,51 @@ def internal_server_error(error):
     return jsonify({
         "error": "The server could not complete the request. Check the Flask terminal for details."
     }), 500
+
+
+_ocr_engine = None
+
+
+def get_ocr_engine():
+    """Load the OCR model on first use so normal text checks start quickly."""
+    global _ocr_engine
+    if _ocr_engine is None:
+        from rapidocr_onnxruntime import RapidOCR
+
+        _ocr_engine = RapidOCR()
+    return _ocr_engine
+
+
+@app.route("/extract-image-text", methods=["POST"])
+def extract_image_text():
+    image = request.files.get("image")
+    if image is None or not image.filename:
+        return jsonify({"error": "No image was uploaded."}), 400
+    if image.mimetype not in ALLOWED_IMAGE_TYPES:
+        return jsonify({"error": "Upload a PNG, JPG, WEBP, or BMP image."}), 400
+
+    image_bytes = image.read(MAX_IMAGE_BYTES + 1)
+    if len(image_bytes) > MAX_IMAGE_BYTES:
+        return jsonify({"error": "Image must be 5 MB or smaller."}), 413
+
+    try:
+        ocr_result, _ = get_ocr_engine()(image_bytes)
+    except ImportError:
+        app.logger.exception("OCR library is not installed")
+        return jsonify({
+            "error": "Image reading is not installed. Run: pip install -r requirements.txt"
+        }), 500
+    except Exception:
+        app.logger.exception("Could not read text from the uploaded image")
+        return jsonify({"error": "The image could not be read. Try a clearer image."}), 400
+
+    text = " ".join(line[1] for line in (ocr_result or [])).strip()
+    if len(text.split()) < 3:
+        return jsonify({
+            "error": "Not enough readable text was found in this image."
+        }), 400
+
+    return jsonify({"text": text[:MAX_INPUT_CHARS]})
 
 
 @app.route("/history", methods=["GET"])

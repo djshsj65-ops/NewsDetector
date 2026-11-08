@@ -1,0 +1,16 @@
+{
+  "model": "TF-IDF + LinearSVC",
+  "dataset": "IFND_10000.csv",
+  "accuracy": 0.8095,
+  "test_rows": 1948,
+  "train_rows": 7790,
+  "fake_precision": 0.8155,
+  "fake_recall": 0.7961,
+  "true_precision": 0.804,
+  "true_recall": 0.8228,
+  "publisher_heldout_accuracy": 0.7007,
+  "benchmark_rows": 36,
+  "benchmark_accuracy": 0.7778,
+  "benchmark_fake_caught": 0.7778,
+  "benchmark_true_kept": 0.7778
+}

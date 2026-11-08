@@ -4,8 +4,7 @@ Evaluation vectorizers are fitted only on each training partition. After evaluat
 the final models and vectorizer are fitted on all cleaned rows and saved for use.
 """
 
-import re
-import unicodedata
+import json
 from pathlib import Path
 
 import joblib
@@ -13,9 +12,17 @@ import pandas as pd
 from sklearn.calibration import CalibratedClassifierCV
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import brier_score_loss, classification_report, confusion_matrix
+from sklearn.metrics import (
+    accuracy_score,
+    brier_score_loss,
+    classification_report,
+    confusion_matrix,
+    precision_recall_fscore_support,
+)
 from sklearn.model_selection import GroupShuffleSplit, train_test_split
 from sklearn.svm import LinearSVC
+
+from text_cleaning import clean_claim_text
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -23,22 +30,26 @@ DATA_PATH = BASE_DIR / "IFND_10000.csv"
 MODEL_PATH = BASE_DIR / "model.pkl"
 VECTORIZER_PATH = BASE_DIR / "vectorizer.pkl"
 CONFIDENCE_MODEL_PATH = BASE_DIR / "confidence_model.pkl"
+METRICS_PATH = BASE_DIR / "model_metrics.json"
+BENCHMARK_PATH = BASE_DIR / "claim_benchmark.csv"
 RANDOM_STATE = 42
 
 
 def normalize_statement(value):
-    """Normalize Unicode, whitespace, and case for deduplication and modeling."""
+    """Normalize text and remove fact-check framing (same cleaning as the website)."""
     if pd.isna(value):
         return ""
-    text = unicodedata.normalize("NFKC", str(value))
-    return re.sub(r"\s+", " ", text).strip().casefold()
+    return clean_claim_text(value)
 
 
 def make_vectorizer():
+    # English stop words and min_df=3 stop the model from leaning on filler words
+    # ("this", "here", "of") that differ between fact-check and news headline styles.
     return TfidfVectorizer(
         lowercase=True,
         ngram_range=(1, 2),
-        min_df=2,
+        min_df=3,
+        stop_words="english",
         sublinear_tf=True,
     )
 
@@ -61,7 +72,7 @@ def evaluate(
     score_confidence=False,
     classifier=None,
 ):
-    """Fit preprocessing/model on training rows only and report held-out metrics."""
+    """Fit preprocessing/model on training rows only, report and return held-out metrics."""
     vectorizer = make_vectorizer()
     train_text = statements.iloc[train_indices]
     test_text = statements.iloc[test_indices]
@@ -103,6 +114,25 @@ def evaluate(
             "Calibrated holdout Brier score (lower is better; 0 is perfect): "
             f"{brier_score_loss(truth, true_probabilities):.3f}"
         )
+
+    precision, recall, _, _ = precision_recall_fscore_support(
+        truth, predictions, labels=[0, 1], zero_division=0
+    )
+    return {
+        "accuracy": round(float(accuracy_score(truth, predictions)), 4),
+        "test_rows": len(test_indices),
+        "train_rows": len(train_indices),
+        "fake_precision": round(float(precision[0]), 4),
+        "fake_recall": round(float(recall[0]), 4),
+        "true_precision": round(float(precision[1]), 4),
+        "true_recall": round(float(recall[1]), 4),
+    }
+
+
+def save_metrics(metrics):
+    """Save holdout metrics so the website can show the measured accuracy."""
+    METRICS_PATH.write_text(json.dumps(metrics, indent=2) + "\n", encoding="utf-8")
+    print(f"Saved holdout metrics: {METRICS_PATH}")
 
 
 def load_and_clean_data():
@@ -190,6 +220,32 @@ def train_and_save_models(statements, labels):
         "reported holdout metrics are estimates for their respective splits, "
         "not scores of the full-data-fitted artifacts."
     )
+    return model, vectorizer
+
+
+def evaluate_benchmark(model, vectorizer):
+    """Score the saved model on plain-language claims written outside the dataset.
+
+    IFND fake rows are mostly fact-check headlines, so the holdout score alone
+    does not show how the model handles a claim as a user would type it.
+    """
+    if not BENCHMARK_PATH.exists():
+        print("\nClaim benchmark skipped: claim_benchmark.csv not found.")
+        return {}
+
+    benchmark = pd.read_csv(BENCHMARK_PATH)
+    truth = benchmark["Label"].str.strip().str.casefold().map({"true": 1, "fake": 0})
+    predictions = model.predict(vectorizer.transform(benchmark["Statement"].map(normalize_statement)))
+    fake_rows, true_rows = truth == 0, truth == 1
+    metrics = {
+        "benchmark_rows": len(benchmark),
+        "benchmark_accuracy": round(float((predictions == truth).mean()), 4),
+        "benchmark_fake_caught": round(float((predictions[fake_rows] == 0).mean()), 4),
+        "benchmark_true_kept": round(float((predictions[true_rows] == 1).mean()), 4),
+    }
+    print("\n=== Plain-language claim benchmark (claim_benchmark.csv) ===")
+    print(metrics)
+    return metrics
 
 
 def main():
@@ -203,7 +259,7 @@ def main():
         random_state=RANDOM_STATE,
         stratify=labels,
     )
-    evaluate(
+    holdout_metrics = evaluate(
         "Stratified random 80/20 holdout - LinearSVC",
         train_indices,
         test_indices,
@@ -223,6 +279,7 @@ def main():
         ),
     )
 
+    publisher_metrics = None
     if "Web" in data.columns:
         split = find_publisher_split(statements, labels, data["Web"])
         if split is None:
@@ -235,7 +292,7 @@ def main():
             publisher_train, publisher_test, publishers = split
             held_out_publishers = sorted(set(publishers.iloc[publisher_test]))
             print("\nHeld-out publisher groups:", ", ".join(held_out_publishers))
-            evaluate(
+            publisher_metrics = evaluate(
                 "Publisher-held-out evaluation",
                 publisher_train,
                 publisher_test,
@@ -248,7 +305,14 @@ def main():
                 "not a deployment guarantee."
             )
 
-    train_and_save_models(statements, labels)
+    model, vectorizer = train_and_save_models(statements, labels)
+    save_metrics({
+        "model": "TF-IDF + LinearSVC",
+        "dataset": DATA_PATH.name,
+        **holdout_metrics,
+        "publisher_heldout_accuracy": publisher_metrics and publisher_metrics["accuracy"],
+        **evaluate_benchmark(model, vectorizer),
+    })
 
 
 if __name__ == "__main__":
